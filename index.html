@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SubLab — 자막 번역 · 변환 · 검수</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:#0b0f14; color:#e2e8f0; font-size:14px;
+         font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard',sans-serif; }
+  .wrap { max-width:1400px; margin:0 auto; padding:24px 20px 80px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .lede { color:#94a3b8; font-size:13px; margin:0 0 22px; line-height:1.6; }
+  .step { background:#0d1117; border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:16px 18px; margin-bottom:14px; }
+  .step > h2 { font-size:13px; margin:0 0 12px; color:#7dd3fc; letter-spacing:.3px; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  /* 설정 영역 — 라벨 길이가 달라도 입력칸 아래선이 맞도록 그리드 + align-items:end */
+  .grid { display:grid; gap:12px 14px; align-items:end; }
+  .g4 { grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); }
+  .g3 { grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); }
+  label.f { display:flex; flex-direction:column; gap:5px; font-size:11px; color:#94a3b8; min-width:0; }
+  label.f > .cap { display:flex; align-items:baseline; gap:6px; height:15px;
+                   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  label.f > .cap em { font-style:normal; color:#64748b; font-size:10.5px; }
+  input[type=text], input[type=number], input[type=password], select, textarea {
+    background:#0f172a; border:1px solid rgba(255,255,255,.16); border-radius:8px;
+    color:#e2e8f0; padding:0 9px; font-size:13px; font-family:inherit; outline:none;
+    width:100%; height:34px; }
+  input:focus, select:focus, textarea:focus { border-color:#38bdf8; }
+  textarea { resize:vertical; line-height:1.5; height:auto; padding:7px 9px; }
+  button { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); color:#e2e8f0;
+           border-radius:8px; padding:0 13px; height:34px; font-size:13px; cursor:pointer; font-family:inherit; }
+  button:hover:not(:disabled) { border-color:#38bdf8; color:#fff; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  button.primary { background:rgba(56,189,248,.18); border-color:rgba(56,189,248,.6); font-weight:700; }
+  button.sm { padding:0 8px; height:24px; font-size:11px; border-radius:6px; }
+  /* 노래 구간 목록 — 열 폭을 고정해 세로로 줄이 맞게 */
+  .songhead, .songrow { display:grid; gap:10px; align-items:center;
+    grid-template-columns:76px 148px minmax(0,1fr) 58px 118px; }
+  .songhead { font-size:10.5px; color:#64748b; padding:0 0 6px; border-bottom:1px solid rgba(255,255,255,.1); }
+  .songrow { padding:7px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+  .songrow .ttl { font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  #drop { border:1.5px dashed rgba(255,255,255,.22); border-radius:12px; padding:26px; text-align:center;
+          cursor:pointer; transition:.15s; }
+  #drop:hover, #drop.over { border-color:#38bdf8; background:rgba(56,189,248,.06); }
+  .hint { font-size:11px; color:#64748b; margin:6px 0 0; line-height:1.5; }
+  .pill { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:99px;
+          font-size:11px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.04); }
+  .pill.warn { border-color:rgba(251,191,36,.5); color:#fbbf24; background:rgba(251,191,36,.1); }
+  .pill.bad  { border-color:rgba(248,113,113,.5); color:#fca5a5; background:rgba(248,113,113,.1); }
+  .pill.ok   { border-color:rgba(52,211,153,.45); color:#6ee7b7; background:rgba(52,211,153,.1); }
+  table { width:100%; border-collapse:collapse; table-layout:fixed; }
+  th { text-align:left; font-size:11px; color:#64748b; font-weight:600; padding:7px 10px;
+       position:sticky; top:0; background:#0d1117; border-bottom:1px solid rgba(255,255,255,.1); z-index:2; }
+  td { padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:top; }
+  td.idx { color:#64748b; font-size:11px; text-align:right; font-variant-numeric:tabular-nums; }
+  tr.sus { background:rgba(251,191,36,.05); }
+  .rulebox { border:1px solid var(--line,#243040); border-radius:8px; background:rgba(148,163,184,.04);
+             padding:14px 16px; margin:0 0 12px; }
+  .rulehead { font-size:13px; margin-bottom:10px; }
+  .rulehead b { color:#fbbf24; font-size:15px; }
+  .rulehead em { font-style:normal; color:#64748b; font-size:12px; }
+  .rulegrid { display:flex; flex-wrap:wrap; gap:7px; }
+  .rulechip { display:inline-flex; align-items:center; gap:7px; font-size:12.5px;
+              padding:5px 11px; border-radius:999px; border:1px solid var(--line,#243040);
+              background:transparent; color:#cbd5e1; cursor:pointer; }
+  .rulechip:hover { border-color:#475569; }
+  .rulechip span { font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:#fbbf24; }
+  .ruleempty { font-size:13px; color:#64748b; padding:4px 0; }
+  .rulefoot { margin-top:11px; font-size:12px; color:#64748b; line-height:1.6; }
+  .rulefoot b { color:#94a3b8; font-weight:600; }
+  tr.edited td:first-child::after { content:'✎'; color:#38bdf8; margin-left:4px; }
+  .tc { font-family:ui-monospace,Menlo,monospace; font-size:10.5px; color:#64748b; white-space:nowrap; }
+  .en { color:#94a3b8; font-size:12.5px; line-height:1.5; white-space:pre-wrap; }
+  .ko { color:#e2e8f0; font-size:13px; line-height:1.55; white-space:pre-wrap; }
+  .ko textarea { width:100%; font-size:13px; }
+  .why { font-size:10.5px; color:#fbbf24; margin-top:3px; }
+  .sug { display:block; width:100%; text-align:left; margin-top:4px; padding:5px 8px; font-size:12px;
+         white-space:pre-wrap; line-height:1.45; background:rgba(56,189,248,.07); border-color:rgba(56,189,248,.3); }
+  .bar { height:6px; background:rgba(255,255,255,.08); border-radius:99px; overflow:hidden; }
+  .bar > i { display:block; height:100%; background:linear-gradient(90deg,#22d3ee,#38bdf8); transition:width .25s; }
+  .scroll { max-height:70vh; overflow:auto; border:1px solid rgba(255,255,255,.08); border-radius:10px; }
+  .err { color:#fca5a5; font-size:12px; margin-top:8px; white-space:pre-wrap; }
+  code { background:rgba(255,255,255,.07); padding:1px 5px; border-radius:4px; font-size:11.5px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useRef, useMemo, useCallback, useEffect, memo } = React;
+
+/* ══════════════════════════════════════════════════════════
+   1. 파일 디코딩 — UTF-8 / UTF-16 / CP949 자동 판별
+   ══════════════════════════════════════════════════════════ */
+function decodeText(buf) {
+  const b = new Uint8Array(buf);
+  if (b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(buf);
+  if (b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder('utf-16be').decode(buf);
+  if (b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) return new TextDecoder('utf-8').decode(buf.slice(3));
+  // BOM 없는 UTF-16 추정: 앞부분에 널바이트가 많으면
+  let nul = 0; for (let i = 0; i < Math.min(200, b.length); i++) if (b[i] === 0) nul++;
+  if (nul > 40) return new TextDecoder('utf-16le').decode(buf);
+  try {
+    const t = new TextDecoder('utf-8', { fatal: true }).decode(buf);
+    return t;
+  } catch (e) {
+    return new TextDecoder('euc-kr').decode(buf); // CP949
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   2. 파서 — SRT / STL(EBU Tech 3264)
+   ══════════════════════════════════════════════════════════ */
+const t2s = (t) => { const m = t.match(/(\d+):(\d\d):(\d\d)[,.](\d{1,3})/);
+  return +m[1]*3600 + +m[2]*60 + +m[3] + +(m[4].padEnd(3,'0'))/1000; };
+const s2t = (v) => { const ms = Math.max(0, Math.round(v*1000));
+  const h=(ms/3600000|0), m=(ms%3600000/60000|0), s=(ms%60000/1000|0), x=ms%1000;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(x).padStart(3,'0')}`; };
+
+function parseSRT(text) {
+  const out = [];
+  for (const blk of text.replace(/\r\n/g,'\n').trim().split(/\n\s*\n+/)) {
+    const L = blk.split('\n');
+    const ti = L.findIndex(x => x.includes('-->'));
+    if (ti < 0) continue;
+    const [a, b] = L[ti].split('-->');
+    out.push({ in: t2s(a), out: t2s(b), en: L.slice(ti+1).join('\n').trim() });
+  }
+  return out;
+}
+
+/* ── 프레임 타임코드 (프리미어 텍스트 내보내기) ──────────────────
+   00:01:33:18 - 00:01:42:01
+   다음 줄에 자막. 마지막 자리가 프레임이다.
+   같은 모양인데 마지막이 60 이상이면 밀리초이므로 이미 SRT 다. */
+const RATES = {
+  '23.976': { base:24, real:24000/1001 }, '24': { base:24, real:24 },
+  '25':     { base:25, real:25 },
+  '29.97':  { base:30, real:30000/1001 }, '30': { base:30, real:30 },
+};
+const TCNUM = '(\\d{1,2})[:;.](\\d{2})[:;.](\\d{2})[:;.,](\\d{2,3})';
+const TCSEP = '(?:\\s*(?:-->|->|--|[-~\u2013\u2014>])\\s*|\\s+)';
+const TCRE  = new RegExp('^' + TCNUM + TCSEP + TCNUM + '(.*)$');
+
+/* 프레임 타임코드 파일인가 — 타임코드 줄이 3개 이상이면 그렇게 본다 */
+function isFrameTC(text) {
+  let hit = 0;
+  for (const l of text.replace(/\r\n/g,'\n').split('\n')) {
+    if (TCRE.test(l.trim()) && ++hit >= 3) return true;
+  }
+  return false;
+}
+/* 마지막 자리가 60 이상이면 프레임일 수 없다 → 밀리초 */
+function tcIsMs(rows) {
+  return rows.some(r => +r[4] > 59 || +r[8] > 59);
+}
+function parseFrameTC(text, fps) {
+  const rate = RATES[fps] || RATES['23.976'];
+  const lines = text.replace(/\r\n/g,'\n').split('\n');
+  const rows = [], out = [];
+  for (const l of lines) { const m = TCRE.exec(l.trim()); if (m) rows.push(m); }
+  const ms = tcIsMs(rows);
+  const sec = (h,m2,s2,f) => ms
+    ? (+h*3600 + +m2*60 + +s2 + +f/1000)
+    : ((+h*3600 + +m2*60 + +s2) * rate.base + +f) / rate.real;
+  let cur = null;
+  for (const raw of lines) {
+    const line = raw.replace(/\r+$/,'').trim();
+    const m = TCRE.exec(line);
+    if (m) {
+      if (cur) out.push(cur);
+      cur = { in: sec(m[1],m[2],m[3],m[4]), out: sec(m[5],m[6],m[7],m[8]), en: [] };
+      const tail = (m[9]||'').replace(/^[\s|,;]+/,'').trim();
+      if (tail) cur.en.push(tail);
+      continue;
+    }
+    if (!cur || !line) continue;
+    if (/^\d+$/.test(line)) continue;
+    cur.en.push(line);
+  }
+  if (cur) out.push(cur);
+  return { cues: out.map(c => ({ in:c.in, out:c.out, en:c.en.join('\n') })), ms };
+}
+
+// ISO 6937 결합 발음부호 (앞에 오고 다음 글자에 붙는다)
+const DIA = { 0xC1:'̀', 0xC2:'́', 0xC3:'̂', 0xC4:'̃', 0xC5:'̄',
+              0xC6:'̆', 0xC7:'̇', 0xC8:'̈', 0xCA:'̊', 0xCB:'̧',
+              0xCD:'̋', 0xCE:'̨', 0xCF:'̌' };
+
+function parseSTL(buf) {
+  const b = new Uint8Array(buf);
+  const ascii = (s, e) => String.fromCharCode(...b.slice(s, e)).replace(/\0/g,'').trim();
+  const dfc = ascii(3, 11);                       // STL24.01 / STL25.01 / STL30.01
+  const base = dfc.includes('30') ? 30 : dfc.includes('24') ? 24 : 25;
+  const fps  = base === 25 ? 25 : base * 1000 / 1001;  // 24→23.976, 30→29.97
+  const cues = []; let acc = null;
+  for (let p = 1024; p + 128 <= b.length; p += 128) {
+    const t = b.slice(p, p + 128);
+    if (t[15] === 1) continue;                    // CF: 주석 블록
+    const frames = (h,m,s,f) => (((h*60)+m)*60+s)*base + f;
+    // 텍스트 필드: 텔레텍스트 제어코드(0x00-0x1F,0x80-0x89) 무시,
+    // ISO 6937 결합 발음부호(0xC1-0xCF) 처리, 0xD5 = ♪
+    let txt = '', dia = '';
+    for (let i = 16; i < 128; i++) {
+      const c = t[i];
+      if (c === 0x8F) break;                      // 미사용 영역 = 종료
+      if (c === 0x8A) { txt += '\n'; continue; }
+      if (c < 0x20 || (c >= 0x80 && c <= 0x89)) continue;   // 제어코드
+      if (c === 0xD5) { txt += '♪'; continue; }
+      if (DIA[c] !== undefined) { dia = DIA[c]; continue; } // 다음 글자에 결합
+      txt += String.fromCharCode(c) + dia; dia = '';
+    }
+    txt = txt.normalize('NFC');
+    const rec = { in: frames(t[5],t[6],t[7],t[8]) / fps, out: frames(t[9],t[10],t[11],t[12]) / fps, en: txt };
+    if (acc) { acc.en += rec.en; } else { acc = rec; }
+    if (t[3] === 0xFF) { acc.en = acc.en.trim(); if (acc.en) cues.push(acc); acc = null; }  // EBN 마지막
+  }
+  if (acc && acc.en.trim()) cues.push({ ...acc, en: acc.en.trim() });
+  return { cues, dfc, fps };
+}
+
+/* ══════════════════════════════════════════════════════════
+   3. 필터 — 음향효과 / 가사 제거
+   ══════════════════════════════════════════════════════════ */
+const isSFXLine   = (l) => /^-?\s*\(.*\)\s*$/.test(l.trim());
+const stripSpeaker = (l) => l.replace(/\((?:[A-Z][a-z]+ )*[a-z' ]+?\)\s*/g, '').replace(/^-\s*$/,'').trim();
+const hasLyric    = (c) => c.en.split('\n').some(l => l.includes('♪') && !isSFXLine(l));
+
+/* 곡 구간 검출 — ♪ 큐가 연속으로 뭉쳐 있으면 한 곡으로 본다.
+   `(♪ CERRONE: "Supernature")` 같은 표기에서 곡명을 뽑는다. */
+function detectSongs(cues, gap = 32) {
+  const idx = cues.map((c,i)=>[c,i]).filter(([c]) => c.en.includes('♪')).map(([,i]) => i);
+  if (!idx.length) return [];
+  const runs = []; let cur = [idx[0]];
+  for (let k = 1; k < idx.length; k++) {
+    if (cues[idx[k]].in - cues[idx[k-1]].in <= gap) cur.push(idx[k]);
+    else { runs.push(cur); cur = [idx[k]]; }
+  }
+  runs.push(cur);
+  return runs.map((r, i) => {
+    let title = '';
+    for (const j of r) {
+      const m = cues[j].en.match(/\(\s*♪\s*([^)]+?)\s*\)/);
+      if (m && !title) title = m[1].replace(/\s*\n\s*/g,' ');
+    }
+    const lyricCount = r.filter(j => hasLyric(cues[j])).length;
+    return { id: i, idx: r, from: cues[r[0]].in, to: cues[r[r.length-1]].in,
+             title: title || '(제목 표기 없음)', total: r.length, lyricCount };
+  });
+}
+
+/* songOn = 번역할 곡 id 집합. 켜져 있어도 `(♪ Music continues)` 같은
+   음악 표기 줄은 대사가 아니므로 계속 제외한다. */
+function applyFilters(cues, { dropSFX, songOn, songMap }) {
+  const kept = [];
+  cues.forEach((c, i) => {
+    const on = songMap[i] !== undefined && songOn.has(songMap[i]);
+    let lines = c.en.split('\n');
+    if (!on) lines = lines.filter(l => !l.includes('♪'));
+    if (dropSFX) lines = lines.filter(l => !isSFXLine(l));
+    lines = lines.map(l => dropSFX ? stripSpeaker(l) : l.trim()).filter(Boolean);
+    if (lines.length) kept.push({ ...c, en: lines.join('\n'), kind: on ? 'lyric' : 'dialog' });
+  });
+  return kept;
+}
+
+/* ══════════════════════════════════════════════════════════
+   4. 줄바꿈 — 의미 단위 분할 후보 생성
+   ══════════════════════════════════════════════════════════ */
+const CLEN = (s) => s.replace(/\s/g,'').length;            // 공백 제외 글자수 (줄바꿈 포함)
+const CONN = ['고','서','며','면','니까','지만','는데','아서','어서','으니','다가','거나','도록','려고','까지'];
+const PART = ['은','는','이','가','을','를','에','의','로','와','과','도','만','에서','에게','한테','으로','부터','보다'];
+const BOUND = ['것','게','거','건','걸','겁','수','줄','때','데','뿐','만큼','채','적','지','번째','만한','듯'];
+const ADV = ['어떻게','왜','언제','어디','어디로','잘','다시','아직','벌써','이미','곧','함께','같이','빨리','천천히',
+             '반드시','절대','결코','너무','아주','정말','매우','좀','더','덜','그냥','계속','자꾸','전부','모두','다'];
+const AUX = ['싶','있','없','보','주','놓','버리','말','드리'];
+// 관형어(체언을 꾸미는 말) — 뒤 체언과 붙어 있어야 한다. 조사 '은/는'과 헷갈리지 않게
+// 확실한 것만 목록으로 두고, -한/-운/-던 으로 끝나는 2음절 이상은 규칙으로 잡는다.
+const ADNW = new Set(('붉은 검은 흰 푸른 노란 파란 작은 큰 좋은 나쁜 늙은 젊은 어린 많은 적은 깊은 얕은 높은 낮은 '+
+ '넓은 좁은 밝은 굵은 얇은 옳은 낡은 새로운 오랜 같은 다른 어떤 무슨 웬 이런 그런 저런 모든 온갖 갖은 첫 옛 헌 새 '+
+ '진짜 가짜 유일한 순수한 완전한 거대한').split(' '));
+const isAdn = (w) => ADNW.has(w) || (w.length >= 2 && /(?:한|운|던)$/.test(w));
+
+function splitCandidates(text, lim) {
+  const w = text.split(' ');
+  if (w.length === 1) return [[text]];
+  const cands = [];
+  for (let i = 1; i < w.length; i++) {
+    const a = w.slice(0,i).join(' '), b = w.slice(i).join(' ');
+    const la = a.replace(/\s+$/,'');
+    const end = /[.!?]$/.test(la) ? 'sent' : /,$/.test(la) ? 'comma'
+      : CONN.some(c => la.endsWith(c)) ? 'conn' : PART.some(p => la.endsWith(p)) ? 'part' : 'none';
+    const fits = CLEN(a) <= lim && CLEN(b) <= lim;
+    // 길이를 못 맞추는 경우엔 균형보다 의미 경계를 더 존중한다
+    const base = ({ sent:-60, comma:-30, conn:-24, part:-18, none:0 })[end] * (fits ? 1 : 0.8);
+    let s = base + Math.abs(CLEN(a)-CLEN(b)) * (fits ? ({sent:.4,comma:.8,conn:.9,part:.9,none:2.2})[end] : 3);
+    // hard = 문법 결합을 깨는 분할. 다른 후보가 있으면 절대 제시하지 않는다.
+    const bw = b.split(' ')[0], aw = la.split(' ').pop();
+    let hard = false;
+    if (BOUND.some(x => bw.startsWith(x))) hard = true;                       // 의존명사 앞
+    if (isAdn(aw)) hard = true;                                               // 관형어 + 체언
+    if (isAdn(bw)) s -= 25;                    // 2행이 관형어로 시작 = 새 구가 열리는 자연스러운 경계
+    if (ADV.includes(aw)) hard = true;                                        // 부사 + 용언
+    if (/(?:고|어|아)$/.test(aw) && AUX.some(x => bw.startsWith(x)) && CLEN(bw) <= 4) hard = true; // 보조용언
+    if (CLEN(a) <= 2 || CLEN(b) <= 2) hard = true;                            // 2자 이하 줄
+    cands.push({ fits, hard, s, a, b });
+  }
+  const rank = (arr) => arr.sort((x,y) => x.s - y.s);
+  const pick = [rank(cands.filter(c => c.fits && !c.hard)),
+                rank(cands.filter(c => !c.hard)),
+                rank(cands.filter(c => c.fits)),
+                rank(cands)].find(a => a.length) || [];
+  const seen = new Set(), out = [];
+  const clean = cands.some(c => !c.hard);
+  // 한 줄로 되면 1안. 깨끗한 분할이 하나도 없으면 길더라도 한 줄을 선택지로 준다.
+  if (CLEN(text) <= lim || !clean) { out.push([text]); seen.add(text); }
+  for (const c of pick) { const k = c.a+'\n'+c.b; if (!seen.has(k)) { seen.add(k); out.push([c.a, c.b]); } if (out.length === 3) break; }
+  return out.slice(0, 3);
+}
+
+/* 고유명사·반복 호칭 후보 추출 — API 없이 즉시. 번역 전에 확인받는다. */
+const STOP = new Set(("I A An The This That These Those But And So Or Well Oh Yeah Yes No Hey Hi Okay OK Now Then "+
+ "When What Where Who Why How If It Its He She They We You Your My Me Him Her Them Us Not Do Does Did Don Can "+
+ "Could Would Should Will Just Like Get Got Go Going Come Came Look Listen Please Sorry Thank Thanks God Jesus "+
+ "Christ Fuck Shit Damn Mr Mrs Ms Dr Sir Ma Am Is Are Was Were Be Been Have Has Had All Every Some Any One Two "+
+ "Three Let Make Take Give Tell Say Said Know Think Want Need Right Left Good Bad Never Always Still Even Only "+
+ "Also Because After Before While Until Since About With From Into Over Under Down Up Out Off On In At To For Of "+
+ "As By Wait Stop Help").split(' '));
+function extractTerms(cues) {
+  const cnt = new Map();
+  const re = /\b([A-Z][a-z']+(?:\s+[A-Z][a-z']+){0,2}|[A-Z]{2,}(?:\s+[A-Z]{2,})?)\b/g;
+  for (const c of cues) {
+    const t = c.en.replace(/♪/g,' '); let m;
+    while ((m = re.exec(t))) {
+      const w = m[1].trim(), parts = w.split(/\s+/);
+      if (parts.length === 1 && STOP.has(parts[0])) continue;
+      const prev = t.slice(0, m.index).replace(/\s+$/,'');
+      if (parts.length === 1 && (prev === '' || /[.!?…\-–—:"(\[]$/.test(prev))) continue;  // 문두 단어는 제외
+      cnt.set(w, (cnt.get(w)||0)+1);
+    }
+  }
+  return [...cnt].filter(([,n]) => n >= 2).sort((a,b) => b[1]-a[1]).slice(0, 24);
+}
+
+/* ══════════════════════════════════════════════════════════
+   5. 검사 — 자동수정 / 의심 목록
+   ══════════════════════════════════════════════════════════ */
+// ♪ 기호 제거 (옵션이 꺼져 있을 때). 대시는 보존한다.
+function stripNote(ko, keep) {
+  if (keep) return ko;
+  return ko.split('\n').map(l => l.replace(/♪/g,'').replace(/\s+/g,' ').trim())
+           .filter(Boolean).join('\n');
+}
+
+function autoFix(ko) {
+  let lines = ko.split('\n').map(l => l.replace(/,\s*$/, ''));   // 줄 끝 쉼표 제거
+  if (lines.length === 1 && /^-\s+/.test(lines[0])) lines[0] = lines[0].replace(/^-\s*/, ''); // 고아 대시
+  return lines.join('\n');
+}
+
+/* 길이 초과 시 자동 줄바꿈. 깨끗한 분할이 있을 때만 적용하고,
+   모든 분할이 문법 결합을 깨면 손대지 않고 의심 목록으로 넘긴다. */
+function autoWrap(ko, lim, kind) {
+  const lines = ko.split('\n');
+  if (lines.some(l => l.trim().startsWith('-'))) {            // 2인 대사: 화자별 한 줄로 병합
+    const out = [];
+    for (const l of lines) {
+      const t = l.trim(); if (!t) continue;
+      if (t.startsWith('-') || !out.length) out.push(t);
+      else out[out.length - 1] += ' ' + t;
+    }
+    return out.join('\n');
+  }
+  if (kind === 'lyric') return ko;                            // 가사는 원문 행 유지
+  if (lines.length <= 2 && lines.every(l => CLEN(l) <= lim)) return ko;
+  const flat = lines.join(' ').replace(/\s+/g, ' ').trim();
+  const best = splitCandidates(flat, lim)[0];
+  return best ? best.join('\n') : ko;
+}
+
+/* 모델 응답 → 최종 자막. ⏎ 정리 → ♪ 처리 → 자동 줄바꿈 → 규칙 자동수정 */
+function finalize(raw, { keepNote, lim, kind }) {
+  return autoFix(autoWrap(autoFix(stripNote(unmark(raw), keepNote)), lim, kind), lim);
+}
+
+/* 병합 가능 판정 — 문장이 끝난 자리에서는 묶지 않는다.
+   자막에는 마침표가 없으므로 "이어진다는 증거"가 있을 때만 묶는다. */
+function joinable(prevKo, nextKo) {
+  const a = prevKo.replace(/\n/g,' ').trim(), b = nextKo.replace(/\n/g,' ').trim();
+  if (a === b) return ', ';                                   // 반복 호칭 — 쉼표로 잇는다
+  const last = a.split(' ').pop();
+  if (CONN.some(c => last.endsWith(c)) || PART.some(p => last.endsWith(p))) return ' ';
+  return null;                                                // 그 외는 문장이 끝난 것으로 본다
+}
+
+/* 스포팅 — 큐 병합 + 체이닝. 번역이 아니라 타이밍 손질이라 API를 쓰지 않는다.
+   기준값은 업체 납품본(황제의 검) 1,084큐를 역산해서 잡았다. */
+const SPOT = {
+  gap: 1.00,     // 이 간격 이내의 인접 큐만 병합 검토 (납품본 병합 쌍 90%가 0.88초 이내)
+  need: 1.20,    // 앞 큐가 이보다 짧을 때만 병합 — 필요할 때만 묶는다
+  chars: 20,     // 병합 후 글자수 상한 (납품본 병합 쌍 75%가 19자)
+  cps: 7.0,      // 병합 판단용 읽기속도 (납품본 90퍼센타일)
+  cpsMax: 9.0,   // 사양서 03 — 읽기 속도 상한. 넘으면 검토 대상으로 표시한다
+  chain: 1.00,   // 아웃점 여유 한도 — 말이 끝난 뒤 최대 1초까지만 붙잡는다
+  durMax: 6.00,  // 사양서 03 — 한 큐 최대 노출 6초
+  minDur: 1.00,  // 최소 표시시간 — 1초 밑으로는 읽기 전에 사라진다
+  minCps: 4.5,   // 체이닝 하한 속도 — 대사가 끝난 뒤 오래 남지 않게
+  borrow: 0.60,  // 짧은 큐가 다음 큐에서 빌려올 수 있는 한도
+};
+
+function respot(cues, lim) {
+  const out = [];
+  for (const c of cues) {
+    const p = out[out.length - 1];
+    const glue = p && joinable(p.ko, c.ko);
+    const joint = p && (p.ko.replace(/\n/g,' ').trim() + (glue || ' ') + c.ko.replace(/\n/g,' ').trim())
+                        .replace(/\s+/g, ' ').replace(/ ,/g, ',').trim();
+    const dur = p && (c.out - p.in);
+    const ok = p && glue !== null && c.kind !== 'lyric' && p.kind !== 'lyric'
+      && c.in - p.out <= SPOT.gap
+      && p.out - p.in < SPOT.need
+      && !/^\s*-/.test(p.ko) && !/^\s*-/.test(c.ko)
+      && CLEN(joint) <= SPOT.chars
+      && dur > 0 && CLEN(joint) / dur <= SPOT.cps
+      && autoWrap(joint, lim, c.kind).split('\n').length <= 2;
+    if (ok) { p.out = c.out; p.ko = joint; p.en = (p.en + ' ' + c.en).trim(); }
+    else out.push({ ...c });
+  }
+  for (const c of out) if (c.kind !== 'lyric') c.ko = autoFix(autoWrap(c.ko, lim, c.kind));
+  // 체이닝 — 다음 큐가 시작할 때까지 붙잡는다. 표시시간을 버는 핵심 단계.
+  // 다만 글자 수에 맞는 만큼만 붙잡는다. 세 글자를 3초 띄우면 화면이 멈춘 것처럼 보인다.
+  out.forEach((c, i) => {
+    const hold = Math.min(Math.max(SPOT.minDur, CLEN(c.ko) / SPOT.minCps), SPOT.durMax);
+    const room = (i + 1 < out.length ? out[i+1].in : c.out + SPOT.chain) - c.out;
+    c.out += Math.min(Math.max(room, 0), SPOT.chain, Math.max(0, hold - (c.out - c.in)));
+  });
+  // 그래도 최소 표시시간에 못 미치는 큐는 다음 큐에서 시간을 빌린다.
+  // 다음 자막이 조금 늦게 뜰 뿐이고, 짧은 자막은 읽을 수 있게 된다.
+  for (let i = 0; i < out.length - 1; i++) {
+    const c = out[i], n = out[i+1];
+    const need = SPOT.minDur - (c.out - c.in);
+    if (need <= 0) continue;
+    const spare = (n.out - n.in) - Math.max(SPOT.minDur, CLEN(n.ko) / SPOT.cps);
+    const take = Math.min(need, Math.max(spare, 0), SPOT.borrow);
+    if (take <= 0.01) continue;
+    c.out += take; n.in += take;
+  }
+  return out;
+}
+
+/* 표기 규칙 검사 — 「자막 표기 규칙」 문서 기준.
+   원문(en)이 있으면 대조하고, 없으면 한글 단독으로 검사할 수 있는 항목만 본다.
+   기울임은 '원문에 있으면 옮기고 없으면 새로 넣지 않는다'가 실무 기준이므로
+   원문 대조 없이는 판정하지 않는다. */
+const PAIRS = [
+  ['<i>', '</i>', '기울임 태그'],
+  ['『', '』', '겹낫표'],
+  ['「', '」', '홑낫표'],
+];
+/* 자주 틀리는 맞춤법 — 사내 「자막작업 주의사항」 기준 */
+const SPELL = [
+  [/거에요/, '거에요 → 거예요'],
+  [/안돼|안되는|안되요|안되\s/, '안돼 → 안 돼 (불가능의 「안」은 띈다)'],
+  [/하던\s*말던|하던가|그러던가/, '하던 → 하든 (선택은 든)'],
+  [/[가-힣]는거[야예요]/, '하는거야 → 하는 거야 (「거」 앞은 띈다)'],
+  [/너가/, '너가 → 네가'],
+  [/됬/, '됬 → 됐'],
+  [/어떻해/, '어떻해 → 어떡해'],
+  [/웬지/, '웬지 → 왠지'],
+];
+/* 3인칭 대명사 — 관계·호칭으로 바꾼다 (완성작 17,292큐 중 0.7%) */
+const PRON = /(?:^|[\s'"(\n])(그녀|그들|그[는가를의])/;
+const stripTag = (s) => s.replace(/<\/?i>/g, '');
+
+function notation(ko, en) {
+  const w = [];
+  const has = (s, t) => s.includes(t);
+
+  // 짝 검사
+  for (const [a, b, name] of PAIRS) {
+    const na = ko.split(a).length - 1, nb = ko.split(b).length - 1;
+    if (na !== nb) w.push(`${name} 짝 안 맞음`);
+  }
+  if (/[♪♫]/.test(ko)) w.push('♪ 기호 — 쓰지 않습니다');
+  if (/\[|\]/.test(ko)) w.push('대괄호 — 이번 사양에서는 쓰지 않습니다');
+  if (/[“”]/.test(ko)) w.push('굽은 큰따옴표 — 곧은 " 로');
+  if (/[‘’＇]/.test(ko)) w.push('굽은·전각 작은따옴표 — 곧은 \' 로');
+  if (/\?\?|!!|\.\.\.[?!]|[?!]{2,}/.test(ko)) w.push('부호 겹침 — 하나만');
+  if (/[.]\s*$/.test(stripTag(ko).trim()) && !/\.\.\.$/.test(stripTag(ko).trim()))
+    w.push('마침표 — 쓰지 않습니다');
+  const pm = ko.match(PRON);
+  if (pm) w.push(`'${pm[1]}' — 이름으로`);
+  for (const [re_, msg] of SPELL) if (re_.test(ko)) w.push(msg);
+
+  // 기울임 원문 대조
+  if (en) {
+    const enI = /<i>/.test(en), koI = /<i>/.test(ko);
+    if (enI && !koI) {
+      const inner = (en.match(/<i>(.*?)<\/i>/gs) || []).join(' ').replace(/<\/?i>/g, '').trim();
+      const plain = stripTag(en).trim();
+      const full = inner.length >= plain.length * 0.8;
+      // 외국어 단어만 기울인 경우는 한글에서 옮기지 않는 것이 관행
+      // 문장 일부만 기울인 것은 대개 외국어 낱말이다 — 한글 자막에서는 옮기지 않는 것이 관행이라
+      // 낱말 수가 적거나 외국어 티가 나면 경고하지 않는다.
+      const words = inner.split(/\s+/).filter(Boolean).length;
+      const foreign = /[¡¿áéíóúñüàèçöäßÀ-ÿ]/.test(inner)
+        || /\b(gracias|hola|salud|amigo|amigos|senor|señor|capitan|capitán|espanol|español|adieu|hasta|luego|viva|merci|bonjour|danke|arigato|sayonara)\b/i.test(inner);
+      if (full && !foreign) w.push('기울임 누락 (원문 전체 기울임)');
+      else if (!full && !foreign && words >= 4) w.push('기울임 확인 (원문 부분 기울임)');
+    }
+    if (!enI && koI) w.push('원문에 없는 기울임');
+  }
+
+  // 화면 텍스트 후보 — 원문이 전부 대문자면 간판·표지일 확률이 높다
+  if (en) {
+    const bare = stripTag(en).replace(/[^A-Za-z ]/g, '').trim();
+    if (bare.length >= 3 && bare === bare.toUpperCase() && !/^I$/.test(bare)
+        && !/<i>/.test(ko) && !/^\s*"/.test(ko)) w.push('화면 텍스트 후보 — 기울임 확인');
+  }
+
+  // 인용 후보 — 「~라고/다고 했어」인데 따옴표가 없다
+  if (/(?:라고|다고|냐고|자고)\s*(?:했|말|하)/.test(ko) && !/'/.test(ko))
+    w.push('인용 후보 — 작은따옴표 확인');
+
+  // 한 어절이 비정상적으로 길면 공백이 빠졌을 수 있다
+  for (const seg of stripTag(ko).split(/\n/))
+    if (seg.split(/\s+/).some(t => /^[가-힣]{12,}$/.test(t))) { w.push('공백 누락 의심'); break; }
+  return w;
+}
+
+/* 화면 정보 후보 — 대사와 겹치면 서브 파일로 뺄 대상.
+   전체가 기울임인데 원문에는 <i> 가 없던 큐다. 원문이 기울임이면 화면 밖 목소리라 대사다. */
+function isScreenInfo(ko, en) {
+  const t = (ko || '').trim();
+  if (!t) return false;
+  if (/^"[^"]*"$/.test(t)) return true;                 // 영화 제목
+  if (/<i>/.test(en || '')) return false;               // 원문 기울임 → 화면 밖 목소리
+  const lines = t.split('\n').filter(x => x.trim());
+  return lines.length > 0 && lines.every(l => /^<i>.*<\/i>$/.test(l.trim()));
+}
+
+function inspect(ko, lim, kind, en, dur = 0) {
+  const lines = stripTag(ko).split('\n');
+  const isDash = lines.some(l => l.trim().startsWith('-'));
+  const w = notation(ko, en);
+  if (lines.length > 2) w.push('3줄 이상');
+  if (kind === 'lyric') return w;              // 가사는 길이·결합 검사 제외
+  if (!isDash) {
+    for (const l of lines) if (CLEN(l) > lim) w.push(`${CLEN(l)}자 (기준 ${lim})`);
+    if (dur > 0) {
+      const cps = CLEN(stripTag(ko)) / dur;
+      if (cps > SPOT.cpsMax) w.push(`초당 ${cps.toFixed(1)}자 (기준 ${SPOT.cpsMax})`);
+    }
+    if (dur > 0 && dur < SPOT.minDur) w.push(`노출 ${dur.toFixed(2)}초 (최소 ${SPOT.minDur}초)`);
+    if (dur > SPOT.durMax) w.push(`노출 ${dur.toFixed(1)}초 (최대 ${SPOT.durMax}초)`);
+    if (lines.length === 2) {
+      const aw = lines[0].trim().split(' ').pop(), bw = lines[1].trim().split(' ')[0];
+      if (ADV.includes(aw)) w.push(`'${aw}' 부사+용언 분리`);
+      else if (/(?:고|어|아)$/.test(aw) && AUX.some(x => bw.startsWith(x)) && CLEN(bw) <= 4) w.push('보조용언 분리');
+      else if (BOUND.some(x => bw.startsWith(x))) w.push(`의존명사 '${bw}' 앞 분리`);
+      else if (isAdn(aw)) w.push(`관형어 '${aw}' + 체언 분리`);
+    }
+  }
+  return w;
+}
+
+/* ══════════════════════════════════════════════════════════
+   6. Claude API
+   ══════════════════════════════════════════════════════════ */
+const API = 'https://api.anthropic.com/v1/messages';
+
+const LYRIC_RULES = `
+[노래 가사 — 이 배치는 극 중에 실제로 흐르는 노래다]
+- 장면을 끌고 가는 노래만 옮긴다. 배경으로 깔리는 삽입곡은 자막을 넣지 않는다.
+- 옮기기로 한 노래는 대사와 같은 비중으로 번역한다. 생략하지 않는다.
+- 직역보다 뜻과 리듬을 살린다. 반복되는 후렴은 반복을 그대로 유지한다.
+- ♪ 같은 음표 기호는 쓰지 않는다.
+- 가사 한 행이 한 큐다. 여러 행을 한 큐에 몰아넣지 않는다.
+- 화면 밖에서 흐르는 노래는 <i> 로 감싼다. 인물이 화면에서 직접 부르면 감싸지 않는다.
+- 문장부호는 최소화하고 마침표는 쓰지 않는다.
+- 글자 수 제한은 대사보다 느슨하게 적용해도 된다.`;
+
+// 원문 언어 감지 — 한자가 라틴 문자보다 많으면 중국어로 본다
+function detectLang(cues) {
+  const t = cues.slice(0, 200).map(c => c.en).join(' ');
+  const han = (t.match(/[\u4e00-\u9fff]/g) || []).length;
+  const lat = (t.match(/[A-Za-z]/g) || []).length;
+  const kor = (t.match(/[\uac00-\ud7a3]/g) || []).length;
+  if (kor > han && kor > lat) return 'ko';
+  return han > lat * 0.3 ? 'zh' : 'en';
+}
+const LANG_NAME = { zh: '중국어', en: '영어', ko: '한국어' };
+
+const LANG_RULES = {
+  en: {
+    name: '영어',
+    pron: `- 대명사를 그대로 옮기지 않는다. 영어는 주어·목적어를 반드시 적지만 한국어 자막은 지운다.
+  문맥으로 알 수 있는 I·you·my·your·me 는 번역문에 넣지 않는다.
+  Please spare my life! -> 살려 주십시오 (제 목숨을 X)
+  I won't spare you today. -> 용서할 수 없다 (난 오늘 널 용서하지 않겠다 X)`,
+    len: '- 분량 기준은 영어 한 단어에 한글 두 자다. 그보다 길어지면 덜어낼 말이 남아 있다는 뜻이다.',
+    noun: `- 영어 고유명사는 음차하기 전에 그것이 이름인지 호칭·직함인지 판단한다.
+  호칭이면 뜻으로 옮긴다 (예: the King Man -> 왕 같은 자 / 킹맨(X)).`,
+    ex: 'Look at me. -> 부탁드립니다',
+  },
+  zh: {
+    name: '중국어',
+    pron: `- 중국어는 주어를 자주 생략하고 你·我 를 반복해 쓴다. 반복되는 대명사는 옮기지 않는다.
+  다만 생략된 주어 때문에 뜻이 흐려지면 문맥에서 찾아 한국어에 되살린다.
+  你就让我走吧 -> 그냥 보내주세요 (당신은 나를 X)
+  我不知道 -> 몰라요 (나는 모릅니다 X)`,
+    len: '- 분량 기준은 중국어 한 글자에 한글 한 자 남짓이다. 원문보다 눈에 띄게 길면 덜어낼 말이 있다.',
+    noun: `- 한자어를 한국 한자음으로 읽어 옮기지 마라. 관객이 아는 말로 바꾼다.
+  降妖師 -> 요괴 퇴치사(항요사 X) · 元神 -> 혼(원신 X) · 心法 -> 수행법(심법 X)
+  王法 -> 법(왕법 X) · 吐納之法 -> 호흡법(토납법 X) · 脫胎換骨 -> 새 몸을 얻다
+  인명·지명은 한국 한자음으로 읽는다 (許清 -> 허청 · 金山鎮 -> 금산진).
+  단 낭자·공자·사부처럼 이미 통용되는 호칭은 그대로 둔다.`,
+    ex: '你看我 -> 부탁드립니다 · 走吧 -> 가시죠',
+  },
+};
+
+function sysPrompt({ glossary, tone, lim, notes, lyric, srcLang = 'en', bang = true }) {
+  const L = LANG_RULES[srcLang] || LANG_RULES.en;
+  const rules = LYRIC_RULES;
+  return `너는 영화 자막 전문 번역가다. ${L.name} 자막을 한국어 자막으로 번역한다.
+${lyric ? rules : ''}
+[번역 규칙]
+- 한 줄 ${lim}자 이내(공백 제외), 최대 2줄. 넘으면 의미 단위로 줄을 나눈다.
+- 줄바꿈은 반드시 의미 단위로. 부사와 용언(어떻게/지내요), 보조용언(보고/싶어),
+  의존명사(할/것) 사이는 절대 나누지 않는다.
+  원문의 줄 나눔은 참고하지 않는다. 한국어는 더 길어지므로 한국어 길이로만 판단한다.
+- 문장부호는 원문을 따라 옮기지 않는다. 원문의 부호마다 처리가 다르다.
+  ? 는 살린다. 의문문이면 원문에 없어도 붙인다.
+  ? 와 ! 는 하나까지다. ?? !! 처럼 겹쳐 쓰지 않는다.
+  ...? ...! 처럼 겹치면 말줄임표나 물음표·느낌표 하나만 남긴다.
+  ${bang
+    ? '! 는 외침과 강한 어조에만 쓴다. 원문에 있다고 그대로 옮기지는 않는다.'
+    : '! 는 쓰지 않는다. 강조는 부호가 아니라 어미로 낸다 (Surrender now! → 순순히 투항해라).'}
+  . 은 쓰지 않는다.
+  , 는 그대로 옮기지 않는다. 줄을 나눌 자리로 삼거나 그냥 지운다.
+    남기는 것은 호격과 반복뿐이다 (도사님, 도사님 / 놓아라, 놓아라 / 언니, 어디 갔었어?).
+    큐를 쉼표로 끝내지 않는다. 다음 큐로 이어질 때도 앞 큐 끝은 아무것도 붙이지 않는다.
+  ... 은 말이 실제로 끊길 때만 쓴다.
+${L.pron}
+- 표기 부호는 셋뿐이고 하나가 하나의 일만 맡는다. 대괄호 [ ] 는 쓰지 않는다.
+  " "  이 영화의 제목. 타이틀이 뜨는 자리에 한 번만. "카르텔 오션"
+  ' '  고유명사·속마음·인용. 별명은 '마카라'예요 / '어떻게 지내?'
+  <i>  장소·방향·시간·인물 소개, 통신·화면 밖 목소리, 화면에 적힌 글자
+- 화면에 글자가 뜨면 순서대로 판단한다. 먼저 걸리는 것을 쓴다.
+  1) 인물이 소리 내어 읽는가 -> 그건 대사다. 아무 부호도 붙이지 않는다.
+  2) 이 영화의 제목인가 -> " "
+  3) 그 밖의 화면 글자 -> <i>
+  장소·방향·시간도 3)이다. <i>텍사스주 브라운스빌</i> · <i>18년 후</i> · <i>개리슨빌 출구</i>
+  인물이 처음 나올 때 뜨는 이름표도 3)이다. 「이름: 소속 또는 관계」 로 쓴다.
+  <i>한빙: 초천칠의 일곱째</i> · <i>수선홍: 약선파 제자</i>
+  표지판·간판·문서·신분증·문자메시지·신문·편액 글귀도 3)이다.
+- 작은따옴표는 대사 안에서 한 겹 안쪽의 말을 감쌀 때만 쓴다.
+  이름이 화제일 때만 붙이고, 그냥 부르는 이름에는 붙이지 않는다.
+  별명은 '마카라'예요 (O) / '호세', 잠깐만 (X -> 호세, 잠깐만)
+  속마음도 작은따옴표다. 기울임이 아니다.
+  곧은 따옴표 ' 를 쓴다. 굽은 ' ' 나 전각 ＇ 는 쓰지 않는다.
+  의미 없는 따옴표는 지운다.
+- 기울임은 말하는 사람이 그 자리에 없을 때다 — 전화·무전·방송·내레이션·회상.
+  원문에 <i> 가 있으면 그 신호를 그대로 따른다.
+  원문에 없어도 위 3)에 해당하면 새로 넣는다.
+  외국어 대사에는 넣지 않는다. 표시 없이 그냥 번역한다.
+  옮긴 한국어 문장 전체를 <i>...</i> 로 감싼다. 문장 일부만 기울이지 않는다.
+  두 줄짜리 큐는 줄마다 따로 감싼다. <i> 하나로 두 줄을 묶지 않는다.
+- 3인칭 대명사 「그·그녀·그들」은 쓰지 않는다. 관계가 축약되어 누구 얘긴지 사라지기 때문이다.
+  바꾸는 순서는 1) 이름 2) 호칭·관계 3) 생략 이다. 이름이 기본이다.
+  He said no. -> 디에고가 거절했어 (그가 거절했어 X)
+  Tell him. -> 호세한테 말해 (그에게 말해 X)
+  She knew. -> 멜리나는 알고 있었어 (그녀는 알고 있었어 X)
+  She's my sister. -> 내 동생이야 (이름보다 관계가 더 정확한 경우)
+  이름을 적으면 글자가 늘지만 그래도 이름이 낫다.
+  관객이 「누구 얘기지?」 하고 되짚는 순간 다음 대사를 놓친다.
+  장면에서 누구인지 이미 분명하면 생략한다. 한국어는 주어를 빼도 문장이 선다.
+  화자가 일부러 이름을 피하는 자리에서만 대명사를 그대로 둔다.
+- 배역 이름과 호칭은 작품 전체에서 하나로 통일한다. 같은 인물이 큐마다 다르게 불리면 안 된다.
+- 축약형을 기본으로 쓴다. 자막은 글자 수가 곧 읽는 시간이다.
+  나는→난, 저는→전, 너는→넌, 저를→절, 그것은→그건, 무엇을→뭘.
+${L.len}
+- 위의 생략과 반대로, 원문 큐가 짧아 그것만으로 뜻이 서지 않으면
+  앞뒤 큐의 맥락을 읽어 완결된 대사로 채운다. 관객은 그 큐 하나만 보고 이해해야 한다.
+  ${L.ex} / 원문 "너" → "넌 대체 누구냐?"
+  대화 상대가 분명하면 호칭을 넣어 관계를 드러내도 좋다 (어디 갔었어? → 언니, 어디 갔었어?).
+  없는 사실을 지어내지는 말고, 원문이 생략한 주어·목적어·서술어만 복원한다.
+- 호칭·직함은 한자 음독을 그대로 옮기지 말고 한국 관객에게 통하는 말로 바꾼다.
+  大仙·道长 → 도사(대선·도장 X). 단 낭자·공자·사부처럼 이미 통용되는 말은 그대로 둔다.
+- 관용구와 한자어도 마찬가지다. 글자를 옮기지 말고 뜻을 옮긴다.
+  옮긴 뒤 "한국 사람이 실제로 이렇게 말하는가"를 자문하고, 아니면 다시 쓴다.
+  특히 감탄사·응답어는 지어내지 마라. 실제로 쓰는 말에서만 고른다.
+  好嘞 → 네 · 알겠습니다 ('예이'는 한국어에 없다. 사극처럼 들린다고 쓰면 안 된다)
+  시대극이라고 해서 없는 말투를 만들어 쓰지 않는다. 옛말도 실제로 존재하는 것만 쓴다.
+  한자어는 한국 한자음으로 읽어 옮기지 않는다. 관객이 아는 말로 바꾼다.
+  降妖師 → 요괴 퇴치사 · 元神 → 혼 · 心法 → 수행법 · 脫胎換骨 → 새 몸을 얻다
+  한자어를 이어 붙여 뜻은 통하지만 아무도 안 쓰는 구절을 만들지 않는다.
+  서술어는 일상 동사로 푼다. 원문이 격식체라도 자막은 귀로 듣는 말이다.
+  延年益壽 → 오래 살다(수명을 늘리다 X) · 遇到危險 → 위험하다(위험에 처하다 X)
+  大道理 → 훈계(도리 따위 X) · 功德圓滿 → 공덕이 차다는 쓰지 않고 그냥 '함께 선인이 되면'
+  執迷不悟 → 고집을 부리다(미혹에서 헤어나지 못하다 X)
+  一念之仁 → 자비를 베풀다(한 가닥 자비를 두다 X)
+  吐納之法 → 호흡법(토납법 X) · 王法 → 법(왕법 X)
+  散了吧 → 이만 돌아가세요(흩어지세요 X) · 打得好 → 잘 혼내 줬어요(잘 팬다 X)
+- 원문이 몸짓·완곡어로 돌려 말한 자리에서 뜻을 놓치지 마라. 장면이 무엇을 말하는지 옮긴다.
+  可是身體 就是控制不住 → 그런데도 마음이 / 그대에게 기울고 맙니다
+  (몸이 / 말을 듣지 않습니다 X — 고백이 신체 증상으로 바뀐다)
+- 화자는 앞뒤 큐를 함께 보고 정한다. 앞만 보면 틀린다.
+  같은 말이 연달아 나오면 한 사람의 반복이 아니라 되물음일 수 있다.
+  走了 / 走了 → 갔습니다 / 가 버렸다고?
+  뒤에 이어지는 대사가 누구 것인지까지 확인한 다음 화자를 결정한다.
+  꾸짖는 말은 바로 앞 대사가 아니라 그보다 앞의 대사를 향한 것일 수 있다.
+  뒤에서 험담 / 아직 여기 계셨어요? / 무례하게 굴지 마 / 어젯밤 구해 주셔서 고마워요
+  — '무례하게 굴지 마'는 바로 앞이 아니라 험담을 꾸짖는 말이다.
+  뒤의 인사가 존댓말이면 그 앞의 인사도 같은 화자·같은 등급이다.
+- 한 인물의 높임 등급은 처음부터 끝까지 일관되게 유지한다.
+  존댓말로 빌던 인물이 한 큐만 반말이 되면 다른 사람의 대사처럼 읽힌다.
+  같은 자리에 있는 여럿(주루 손님, 마을 사람)도 등급을 맞춘다.
+- 원문은 화자와 높임을 표시하지 않는다. 走吧 · Let's go. 에는 그 정보가 없고,
+  한국어만 '가자'냐 '가시죠'냐를 골라야 한다. 원문에 없는 것을 채워 넣는 자리다.
+  이때 대화 구조를 상상해서 추론하지 말고, 바로 앞뒤 큐에서 같은 화자의 말투를 찾아 맞춘다.
+  앞뒤로도 판단이 서지 않으면 임의로 정하지 말고 그 큐를 검토 대상으로 남긴다.
+- 대화 상대는 바뀐다는 신호가 있을 때만 바뀐다. 신호가 없으면 앞의 상대가 그대로 이어진다.
+  존댓말로 대화하던 중에 새 인물이 등장했다는 근거 없이 반말로 내려가지 마라.
+  Someone is here. → 누가 왔어요 (허청과 대화 중이므로 / 누가 왔어 X)
+- 2인 대사는 각 줄 앞에 "- "를 붙인다. 1인 대사에는 붙이지 않는다.
+  원문이 한 줄이어도 화자가 둘이면 붙인다. 원문 형식이 아니라 장면이 기준이다.
+- 같은 호칭·감탄이 세 번 이상 연속되면 두 번째부터는 상황에 맞게 변주한다.
+  화면에 같은 자막이 반복해 뜨는 것을 막기 위한 것이며, 새로운 사실을 더하지는 않는다.
+  Master! / Master! / Master! → 도사님, 도사님 / 도사님, 잠시만요 / 도사님
+- 화자 이름 표기는 넣지 않는다.
+- 표준 표기를 지킨다: 너가(X)→네가, 됬(X)→됐, 어떻해(X)→어떡해, 웬지(X)→왠지.
+${L.noun}
+- 뜻이 전달되는 선에서 최대한 간결하게 다듬는다. 원문 구조를 그대로 옮기지 마라.
+  자막은 읽는 시간이 곧 화면을 못 보는 시간이다. 짧을수록 좋다.
+  「우리는 소비자들을 만족시키기 위해 이 제품을 테스트하는데」
+    -> 제품 테스트에 / 여러분의 도움이 필요합니다
+  「다시 말해서 테스트에는 12명의 지원자가 필요하다는 뜻입니다」
+    -> 테스트에 12명이 / 필요하다는 뜻입니다
+  「여러분들에게 경고하는데 이건 매우 격렬한 경험이 될 것입니다」
+    -> 경고하는데 / 아주 강렬한 경험일 겁니다
+  「내 말은 모든 게임에는 일시 중지가 있지 않느냐는 거예요」
+    -> 모든 게임에는 / 일시 중지가 있잖아요
+  「정말 참을 수 없는 일이구만」 -> 미치겠군
+  「나도 그것에 대해 다 읽어 보았어요」 -> 나도 다 읽어 봤어요
+  「내가 전혀 보지도 못했던 게임들이에요」 -> 처음 보는 게임들이에요
+- 문어체를 구어체로 낮춘다. 자막은 눈으로 읽지만 귀로 듣는 말이어야 한다.
+  보았어요 -> 봤어요 · 하였습니다 -> 했습니다 · 그러하다 -> 그렇다
+- 숫자는 아라비아 숫자로 적는다. 글로 풀어 쓰지 않는다.
+  백만 달러 -> 100만 달러 · 삼천 명 -> 3,000명 · 열두 명 -> 12명 · 이십오 년 -> 25년
+  큰 수의 만·억은 한글로 살린다 — 100만 · 1억 (1,000,000 X)
+  단 굳어진 말은 그대로 둔다 — 하나도 없어 · 둘 다 · 첫 번째 · 한잔하자 · 한두 번
+- 단위는 한국에서 쓰는 것으로 바꾸고 기호로 적는다.
+  파운드·마일·온스·화씨 -> kg·km·g·℃ (킬로미터 X -> km)
+  숫자는 읽기 좋게 반올림해도 된다 (5.5마일 -> 9km).
+- 외국어를 한글 발음으로만 적어 둔 원문은 뜻으로 옮긴다.
+  헬로 -> 안녕 · 헤이 -> 이봐 · 오케이 -> 알겠어
+- 맞춤법을 지킨다. 자주 틀리는 것들이다.
+  거에요 -> 거예요 · 안돼/안되는 -> 안 돼/안 되는 (불가능의 「안」은 띈다)
+  하던 말던 -> 하든 말든 · 하던가 -> 하든가 (선택은 「든」, 회상은 「던」)
+  하는거야 -> 하는 거야 (「거」 앞은 띈다) · (정답을) 맞추다 -> 맞히다
+  너가 -> 네가 · 됬 -> 됐 · 어떻해 -> 어떡해 · 웬지 -> 왠지
+  원형이 있으면 붙여 쓴다 — 갈아입다 · 데려다주다 · 한잔하다.
+  단 개수를 뜻하면 띈다 — 한 잔 더 주시오.
+- 원문이 여러 큐에 걸친 한 문장이면 각 큐를 자연스러운 조각으로 옮긴다.
+
+[참고 자막 활용]
+- 참고 줄이 주어지면 반드시 함께 읽는다. 원문 하나만 보고 판단하지 마라.
+- 중문과 영문이 갈리면 영문을 따른다. 영어는 인칭과 화자를 명시하므로 모호함이 적다.
+  但小青却想做… / But I want to be… → "난"이 맞다. 중문의 3인칭은 자기지칭이다.
+- 영문이 의역이고 중문이 구체적이면 중문의 사실관계를 따르되 영문의 어조를 살린다.
+- [기존번역]은 이미 납품된 사람 번역이다. 표현을 존중하고 함부로 바꾸지 마라.
+  다만 위 규칙을 어긴 곳은 고친다 — 줄 길이 초과, 마침표·느낌표, 높임 불일치.
+  고칠 이유가 없으면 기존번역을 그대로 쓴다.
+- 참고 줄이 비어 있으면 없는 것으로 보고 원문만으로 판단한다.
+${tone ? `\n[톤·수위]\n${tone}` : ''}
+${glossary ? `\n[고유명사·용어 고정]\n${glossary}` : ''}
+${notes ? `\n[작품 메모]\n${notes}` : ''}
+
+[입출력 형식]
+- 입력은 "번호. 원문" 형태다. 원문 안의 ⏎ 는 그 자막 안의 줄바꿈을 뜻한다.
+- 원문 아래에 [중문] [영문] [기존번역] 같은 참고 줄이 붙을 수 있다. 함께 읽고 판단한다.
+- 출력은 {n, ko} 객체의 배열이다. n 은 입력 번호를 그대로 쓴다.
+- 번호를 빠뜨리거나 합치거나 나누지 마라. 입력 번호마다 정확히 하나씩 반환한다.
+- ko 안의 줄바꿈은 실제 개행으로 쓴다. ⏎ 기호는 결과에 절대 쓰지 마라.`;
+}
+
+async function callClaude({ key, model, effort, system, user, schema, maxTokens = 16000 }) {
+  const body = {
+    model, max_tokens: maxTokens,
+    system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+    output_config: { effort, ...(schema ? { format: { type: 'json_schema', schema } } : {}) },
+    messages: [{ role: 'user', content: user }],
+  };
+  const r = await fetch(API, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j?.error?.message || `HTTP ${r.status}`);
+  if (j.stop_reason === 'refusal') throw new Error('모델이 요청을 거부했습니다 (safety refusal)');
+  const txt = (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  return { text: txt, usage: j.usage || {} };
+}
+
+// 번역 결과는 번호를 함께 받는다. 개수가 어긋나도 번호로 꽂으므로 밀리지 않는다.
+const ARR_SCHEMA = {
+  type: 'object',
+  properties: { lines: { type: 'array', items: {
+    type: 'object',
+    properties: { n: { type: 'integer' }, ko: { type: 'string' } },
+    required: ['n','ko'], additionalProperties: false } } },
+  required: ['lines'], additionalProperties: false,
+};
+const ALT_SCHEMA = {
+  type: 'object',
+  properties: { alts: { type: 'array', items: { type: 'string' } } },
+  required: ['alts'], additionalProperties: false,
+};
+// 입력에 쓴 줄바꿈 표시(⏎)가 결과에 섞여 나오면 실제 줄바꿈으로 되돌린다.
+const unmark = (s) => String(s).replace(/\s*⏎\s*/g, '\n').replace(/[ \t]+\n/g, '\n').trim();
+
+/* ══════════════════════════════════════════════════════════
+   7. UI
+   ══════════════════════════════════════════════════════════ */
+function Row({ c, i, lim, onChange, onSuggest, onTrack, busy, refCols }) {
+  const [editing, setEditing] = useState(false);
+  const warns = inspect(c.ko || '', lim, c.kind, c.en || '', c.out - c.in);
+  return (
+    <tr className={warns.length ? 'sus' : ''} style={c.edited ? { outline:'1px solid rgba(56,189,248,.25)', outlineOffset:'-1px' } : undefined}>
+      <td className="idx">{i+1}{c.kind==='lyric' && <div style={{color:'#a78bfa',fontSize:12}}>♪</div>}</td>
+      <td className="tc">{s2t(c.in)}<br/>{s2t(c.out)}</td>
+      <td className="en">{c.en}</td>
+      {refCols.map(lab => {
+        const t = (c.refs || {})[lab] || '';
+        return (
+          <td key={lab} className="en">
+            {t ? <span style={{whiteSpace:'pre-wrap'}}>{t}</span> : <span style={{color:'#475569'}}>—</span>}
+            {t && t !== c.ko &&
+              <button className="sm" style={{marginTop:4, width:'100%'}}
+                title="이 자막을 그대로 채택합니다"
+                onClick={() => onChange(t)}>이대로 쓰기</button>}
+          </td>
+        );
+      })}
+      <td className="ko">
+        {editing ? (
+          <textarea autoFocus rows={Math.max(2, (c.ko||'').split('\n').length)} defaultValue={c.ko || ''}
+            onBlur={(e) => { onChange(e.target.value); setEditing(false); }}
+            onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false); }} />
+        ) : (
+          <div onClick={() => setEditing(true)} style={{cursor:'text', minHeight:20}}>{c.ko || <span style={{color:'#475569'}}>—</span>}</div>
+        )}
+        {warns.length > 0 && <div className="why">⚠ {warns.join(' · ')}</div>}
+        {c.sugg && c.sugg.map((s, k) => (
+          <button key={k} className="sug" onClick={() => onChange(s)}>{k+1}안 · {s}</button>
+        ))}
+      </td>
+      <td>
+        <div style={{display:'grid', gap:4}}>
+          <button className="sm" disabled={busy} onClick={() => onSuggest(false)}>줄바꿈 2안</button>
+          <button className="sm" disabled={busy} onClick={() => onSuggest(true)}>재번역 2안</button>
+          <button className="sm" onClick={onTrack}
+            title="대사와 겹치는 화면 정보만 서브로 뺍니다"
+            style={c.track === 'sub'
+              ? { background:'#312e81', borderColor:'#4f46e5', color:'#c7d2fe' }
+              : isScreenInfo(c.ko || '', c.en || '') ? { borderColor:'#4f46e5' } : undefined}>
+            {c.track === 'sub' ? '서브' : '본편'}
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+const MemoRow = memo(Row);
+
+function App() {
+  const [raw, setRaw]       = useState(null);   // 원본 큐
+  const [meta, setMeta]     = useState('');
+  const [cues, setCues]     = useState([]);     // 작업 큐
+  const [dropSFX, setSFX]   = useState(true);
+  const keepNote = false;                       // ♪ 기호는 쓰지 않는다 (사양서 4.5)
+  const [bang, setBang]     = useState(true);   // 느낌표 허용 (납품본 17,260큐 중 7.0%)
+  const [songOn, setSongOn] = useState(new Set());   // 번역할 곡 구간 id
+  const [scale, setScale]   = useState('1');    // 프레임레이트 보정
+  const [fps, setFps]       = useState('23.976');  // 프레임 타임코드 해석용
+  const [offset, setOffset] = useState('0');
+  const [showRules, setShowRules] = useState(false);
+  const [ruleQ, setRuleQ] = useState('');
+  const [lim, setLim]       = useState(13);   // 사양서 03: 한 줄 13자 이내 (공백 제외)
+  const [key, setKey]       = useState(localStorage.getItem('ak') || '');
+  const [model, setModel]   = useState('claude-opus-5');
+  const [effort, setEffort] = useState('medium');
+  const [gloss, setGloss]   = useState('');
+  const [terms, setTerms]   = useState([]);   // 원문 용어 후보
+  const [tone, setTone]     = useState('영화 자막 톤. 현대 구어체. 사극 말투(-하오, -옵니다, -이니라, -소서, -거늘)는 쓰지 않는다. 손윗사람의 위엄은 해라체로 살린다. 욕설은 원문 수위대로 직역.');
+  const [notes, setNotes]   = useState('');
+  const [prog, setProg]     = useState(null);
+  const [busy, setBusy]     = useState(false);
+  const [err, setErr]       = useState('');
+  const [filter, setFilter] = useState('all');
+  const dropRef = useRef(null);
+  const [refs, setRefs] = useState([]);        // 참고 자막 [{label, cues}]
+  const [srcLang, setSrcLang] = useState('en'); // 원문 언어 (자동 감지 후 수동 변경 가능)
+  const [files, setFiles] = useState([]);       // 불러온 자막 [{name, cues, lang, role}]
+  const [base, setBase] = useState(null);       // 검수할 기존 번역본 {label, cues}
+
+  // 여러 파일을 한 번에 읽고 언어를 감지해 역할을 미리 정해 둔다
+  const readAll = async (list) => {
+    setErr('');
+    const added = [];
+    for (const file of [...list]) {
+      try {
+        const buf = await file.arrayBuffer();
+        let cues, info, tc = false;
+        if (/\.stl$/i.test(file.name)) {
+          const r = parseSTL(buf); cues = r.cues; info = `STL · ${r.fps.toFixed(3)}fps`;
+        } else {
+          const txt = decodeText(buf);
+          if (isFrameTC(txt)) {                       // 프리미어 텍스트 내보내기
+            const r = parseFrameTC(txt, fps);
+            cues = r.cues; tc = !r.ms;
+            info = r.ms ? '이미 SRT' : `프레임 TC · ${fps}fps`;
+          } else { cues = parseSRT(txt); info = 'SRT'; }
+        }
+        if (!cues.length) throw new Error('큐를 읽지 못했습니다');
+        added.push({ name: file.name, cues, info, tc, lang: detectLang(cues), role: 'ref' });
+      } catch (e) { setErr(`${file.name}: ${e.message}`); }
+    }
+    setFiles(prev => {
+      const merged = [...prev];
+      for (const a of added) if (!merged.some(m => m.name === a.name)) merged.push(a);
+      // 번역 대상 자동 선택: 영어 > 중국어 순, 한국어는 참고로만
+      if (!merged.some(m => m.role === 'source')) {
+        // 프리미어에서 뽑은 한글 자막은 번역 없이 바로 검수 대상이 된다
+        const tcko = merged.find(m => m.tc && m.lang === 'ko');
+        const pick = tcko || merged.find(m => m.lang === 'en') || merged.find(m => m.lang === 'zh');
+        if (pick) pick.role = 'source';
+      }
+      if (!merged.some(m => m.role === 'base')) {
+        const ko = merged.find(m => m.lang === 'ko' && m.role === 'ref');
+        if (ko) ko.role = 'base';
+      }
+      return merged;
+    });
+  };
+
+  // 01 단계 확정 — 선택한 역할대로 원문과 참고를 세팅한다
+  const commitFiles = () => {
+    const src = files.find(f => f.role === 'source');
+    if (!src) { setErr('번역할 원문을 하나 골라주세요.'); return; }
+    setErr('');
+    setSrcLang(src.lang === 'ko' ? 'en' : src.lang);
+    setRaw(src.cues);
+    setMeta(`${src.name} — ${src.info} · ${src.cues.length}큐 · ${LANG_NAME[src.lang]}`);
+    setRefs(files.filter(f => f.role === 'ref')
+                 .map(f => ({ label: f.name.replace(/\.[^.]+$/,'').slice(0,14), cues: f.cues })));
+    const b = files.find(f => f.role === 'base')
+              || (src.tc && src.lang === 'ko' ? src : null);   // 프리미어 한글본은 자기 자신이 검수 대상
+    setBase(b ? { label: b.name.replace(/\.[^.]+$/,'').slice(0,14), cues: b.cues } : null);
+    setCues([]); setProg(null);
+    if (/\.stl$/i.test(src.name)) setScale('1');
+  };
+
+  // 참고 자막을 타임코드가 가장 많이 겹치는 큐에 붙인다
+  const attachRef = (list, label, refCues) => list.map(c => {
+    let best = null, bestOv = 0;
+    for (const r of refCues) {
+      const ov = Math.max(0, Math.min(c.out, r.out) - Math.max(c.in, r.in));
+      if (ov > bestOv) { bestOv = ov; best = r; }
+    }
+    const half = 0.5 * Math.min(c.out - c.in, best ? best.out - best.in : 0);
+    return { ...c, refs: { ...(c.refs || {}), [label]: (best && bestOv >= half) ? best.en : '' } };
+  });
+
+  const readRef = async (file) => {
+    try {
+      const buf = await file.arrayBuffer();
+      const parsed = /\.stl$/i.test(file.name) ? parseSTL(buf).cues : parseSRT(decodeText(buf));
+      if (!parsed.length) throw new Error('큐를 읽지 못했습니다');
+      const label = file.name.replace(/\.[^.]+$/, '').slice(0, 14);
+      setRefs(prev => prev.some(r => r.label === label) ? prev : [...prev, { label, cues: parsed }]);
+      setCues(prev => prev.length ? attachRef(prev, label, parsed) : prev);
+    } catch (e) { setErr('참고 자막 읽기 실패: ' + e.message); }
+  };
+
+  const songs = useMemo(() => raw ? detectSongs(raw) : [], [raw]);
+  const songMap = useMemo(() => {
+    const m = {}; songs.forEach(s => s.idx.forEach(i => { m[i] = s.id; })); return m;
+  }, [songs]);
+
+  const prepared = useMemo(() => {
+    if (!raw) return [];
+    const k = parseFloat(scale) || 1, o = parseFloat(offset) || 0;
+    return applyFilters(raw, { dropSFX, songOn, songMap })
+      .map(c => ({ ...c, in: c.in*k + o, out: c.out*k + o, ko: '', sugg: null, edited: false }));
+  }, [raw, dropSFX, songOn, songMap, scale, offset]);
+
+  const translate = async () => {
+    if (!key) { setErr('API 키를 입력하세요.'); return; }
+    setErr(''); setBusy(true);
+    let work = prepared.map(c => ({ ...c }));
+    for (const r of refs) work = attachRef(work, r.label, r.cues);
+    setCues(work);
+    // 대사/가사가 섞이지 않도록 같은 종류끼리 배치를 만든다 (지침이 다르므로)
+    const B = 40, batches = [];
+    for (let s = 0; s < work.length; ) {
+      const kind = work[s].kind; let e = s;
+      while (e < work.length && work[e].kind === kind && e - s < B) e++;
+      batches.push({ kind, from: s, to: e }); s = e;
+    }
+    let done = 0; const missing = [];
+    try {
+      for (const b of batches) {
+        const chunk = work.slice(b.from, b.to);
+        const system = sysPrompt({ glossary: gloss, tone, lim, notes, lyric: b.kind === 'lyric', srcLang, bang });
+        const user = chunk.map((c, i) => {
+          const head = `${i+1}. ${c.en.replace(/\n/g,' ⏎ ')}`;
+          const extra = refCols
+            .map(lab => [lab, ((c.refs || {})[lab] || '').replace(/\n/g,' ⏎ ').trim()])
+            .filter(([, t]) => t)
+            .map(([lab, t]) => `   [${lab}] ${t}`);
+          return [head, ...extra].join('\n');
+        }).join('\n');
+        const { text } = await callClaude({ key, model, effort, system, user, schema: ARR_SCHEMA });
+        let arr;
+        try { arr = JSON.parse(text).lines; } catch (e) { throw new Error('응답 파싱 실패: ' + text.slice(0,200)); }
+        if (!Array.isArray(arr)) throw new Error('응답이 배열이 아닙니다');
+        const byN = new Map(arr.filter(o => o && typeof o.n === 'number').map(o => [o.n, o.ko]));
+        chunk.forEach((c, i) => {
+          const v = byN.get(i + 1);
+          if (v == null) { missing.push(b.from + i + 1); c.ko = ''; return; }
+          c.ko = finalize(v, { keepNote, lim, kind: c.kind });
+        });
+        done = b.to;
+        setCues([...work]);
+        setProg({ done, total: work.length });
+      }
+      localStorage.setItem('ak', key);
+      if (missing.length) setErr(`⚠ ${missing.length}개 큐를 모델이 빠뜨렸습니다 (#${missing.slice(0,10).join(', #')}${missing.length>10?' …':''}). `
+        + `번호로 맞춰 넣었으므로 다른 자막은 밀리지 않았습니다. 해당 큐만 '재번역 2안'으로 채우세요.`);
+    } catch (e) { setErr('번역 중단: ' + e.message); }
+    setBusy(false);
+  };
+
+  const setKo = useCallback((idx, v) => {
+    setCues(prev => prev.map((c, i) => i === idx ? { ...c, ko: v, sugg: null, edited: true } : c));
+  }, []);
+
+  const suggest = useCallback(async (idx, retranslate) => {
+    const c = cues[idx];
+    if (!retranslate) {
+      const flat = (c.ko || '').split('\n').join(' ').replace(/\s+/g,' ').trim();
+      setCues(prev => prev.map((x,i) => i===idx ? { ...x, sugg: splitCandidates(flat, lim).map(a => a.join('\n')) } : x));
+      return;
+    }
+    setBusy(true); setErr('');
+    try {
+      const { text } = await callClaude({
+        key, model, effort, maxTokens: 4000,
+        system: sysPrompt({ glossary: gloss, tone, lim, notes, srcLang, bang }),
+        user: `아래 자막 한 개를 서로 다른 방식으로 2가지 번역해라. ⏎ 는 줄바꿈이다.\n`
+            + `결과의 줄바꿈은 실제 개행으로 쓰고 ⏎ 기호는 쓰지 마라.\n\n`
+            + `현재 번역: ${c.ko}\n원문: ${c.en.replace(/\n/g,' ⏎ ')}`,
+        schema: ALT_SCHEMA,
+      });
+      const arr = JSON.parse(text).alts.slice(0, 2);
+      setCues(prev => prev.map((x,i) => i===idx ? { ...x, sugg: arr.map(a => finalize(a, { keepNote, lim, kind: c.kind })) } : x));
+    } catch (e) { setErr('재번역 실패: ' + e.message); }
+    setBusy(false);
+  }, [cues, key, model, effort, gloss, tone, lim, notes, keepNote]);
+
+  const view = useMemo(() => {
+    if (filter === 'sus')   return cues.map((c,i)=>[c,i]).filter(([c]) => {
+      const ws = inspect(c.ko||'', lim, c.kind, c.en||'', c.out - c.in);
+      if (!ws.length) return false;
+      if (!ruleQ) return true;
+      return ws.some(x => x.replace(/\s*\(.*\)$/, '').replace(/^'.*?'\s*/, '').replace(/^\d+자.*/, '글자수 초과') === ruleQ);
+    });
+    if (filter === 'edit')  return cues.map((c,i)=>[c,i]).filter(([c]) => c.edited);
+    return cues.map((c,i)=>[c,i]);
+  }, [cues, filter, lim, ruleQ]);
+
+  const refCols = useMemo(() => refs.map(r => r.label), [refs]);
+
+  // 검수할 번역본이 있으면 번역 없이 결과 자리에 채운다 (API 호출 없음)
+  useEffect(() => {
+    if (!base || !prepared.length) return;
+    let work = prepared.map(c => ({ ...c }));
+    for (const r of refs) work = attachRef(work, r.label, r.cues);
+    work = work.map(c => {
+      let best = null, bestOv = 0;
+      for (const r of base.cues) {
+        const ov = Math.max(0, Math.min(c.out, r.out) - Math.max(c.in, r.in));
+        if (ov > bestOv) { bestOv = ov; best = r; }
+      }
+      const half = 0.5 * Math.min(c.out - c.in, best ? best.out - best.in : 0);
+      return (best && bestOv >= half) ? { ...c, ko: best.en } : c;
+    });
+    setCues(work);
+  }, [base, prepared]);
+
+  const susCount = useMemo(() => cues.filter(c => inspect(c.ko||'', lim, c.kind, c.en||'', c.out - c.in).length).length, [cues, lim]);
+  const ruleStat = useMemo(() => {
+    const m = {}; let total = 0;
+    for (const c of cues)
+      for (const wname of inspect(c.ko||'', lim, c.kind, c.en||'', c.out - c.in)) {
+        const key = wname.replace(/\s*\(.*\)$/, '').replace(/^'.*?'\s*/, '').replace(/^\d+자.*/, '글자수 초과');
+        m[key] = (m[key]||0) + 1; total++;
+      }
+    return { total, rows: Object.entries(m).sort((a,b) => b[1]-a[1]) };
+  }, [cues, lim]);
+
+  const subCount = useMemo(() => cues.filter(c => c.track === 'sub').length, [cues]);
+
+  const download = () => {
+    const base = (meta.split(' —')[0] || 'subtitle').replace(/\.[^.]+$/, '');
+    const save = (list, suffix) => {
+      if (!list.length) return;
+      const body = list.map((c, i) => `${i+1}\n${s2t(c.in)} --> ${s2t(c.out)}\n${c.ko}\n`).join('\n');
+      const blob = new Blob(['﻿' + body], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = base + suffix + '.srt';
+      a.click(); URL.revokeObjectURL(a.href);
+    };
+    const on = cues.filter(c => (c.ko||'').trim());
+    save(on.filter(c => c.track !== 'sub'), '_KO');
+    save(on.filter(c => c.track === 'sub'), '_KO_sub');
+  };
+
+  return (
+    <div className="wrap">
+      <h1>SubLab</h1>
+      <p className="lede">
+        해외 자막을 <b>한글로 번역</b>하고, 프리미어에서 뽑은 텍스트를 <b>SRT로 변환</b>합니다.
+        어느 쪽이든 <b>「한국어 자막 제작 사양」 기준으로 검수</b>합니다.
+        규칙 위반은 자동 수정하고 애매한 부분은 2가지 안을 제시하며, 그래도 이상하면 표에서 직접 고칠 수 있습니다.
+        파일은 브라우저 안에서만 처리되고 <b>번역할 때만</b> Anthropic API로 전송됩니다 — 변환·검수는 API 키 없이 됩니다.
+      </p>
+
+      {/* 01 파일 */}
+      <div className="step">
+        <h2>01 — 자막 파일</h2>
+          <div id="drop" ref={dropRef}
+            onClick={() => document.getElementById('pick').click()}
+            onDragOver={(e) => { e.preventDefault(); dropRef.current.classList.add('over'); }}
+            onDragLeave={() => dropRef.current.classList.remove('over')}
+            onDrop={(e) => { e.preventDefault(); dropRef.current.classList.remove('over');
+                             if (e.dataTransfer.files.length) readAll(e.dataTransfer.files); }}>
+            <div style={{fontSize:15, fontWeight:600}}>자막 파일을 끌어다 놓으세요 · 여러 개 한꺼번에</div>
+            <div className="hint" style={{marginTop:6}}>
+              해외 자막(중국어·영어) · 프리미어 텍스트 · 번역 업체 한글본 — 있는 대로 모두 넣으세요<br/>
+              SRT · STL · 프리미어 TXT · UTF-8 / UTF-16 / CP949 자동 판별
+            </div>
+          </div>
+          <input id="pick" type="file" accept=".srt,.stl,.txt" hidden multiple
+                 onChange={(e) => { if (e.target.files.length) readAll(e.target.files); e.target.value=''; }} />
+
+          {files.length > 0 && (
+          <div style={{marginTop:14}}>
+            <div className="songhead" style={{gridTemplateColumns:'minmax(0,1fr) 92px 150px 40px'}}>
+              <div>파일</div><div>언어</div><div>역할</div><div></div>
+            </div>
+            {files.map((f, i) => (
+              <div key={f.name} className="songrow" style={{gridTemplateColumns:'minmax(0,1fr) 92px 150px 40px'}}>
+                <div className="ttl" title={f.name}>{f.name}
+                  <span style={{color:'#64748b'}}> · {f.info} · {f.cues.length}큐</span></div>
+                <div>
+                  <select value={f.lang} onChange={e => setFiles(p => p.map((x,k) =>
+                    k===i ? {...x, lang:e.target.value} : x))}>
+                    <option value="zh">중국어</option><option value="en">영어</option><option value="ko">한국어</option>
+                  </select>
+                </div>
+                <div>
+                  <select value={f.role} onChange={e => { const v=e.target.value; setFiles(p => p.map((x,k) =>
+                    k===i ? {...x, role:v}
+                          : ((v==='source'&&x.role==='source')||(v==='base'&&x.role==='base') ? {...x, role:'ref'} : x))); }}>
+                    <option value="source">번역할 원문</option>
+                    <option value="base">검수할 번역본</option>
+                    <option value="ref">참고</option>
+                  </select>
+                </div>
+                <div><button className="sm" title="목록에서 빼기"
+                  onClick={() => setFiles(p => p.filter((_,k) => k!==i))}>×</button></div>
+              </div>
+            ))}
+            <div className="row" style={{marginTop:14}}>
+              <span className="pill">
+                {files.some(f=>f.role==='source')
+                  ? `원문 ${files.find(f=>f.role==='source').name}`
+                    + (files.some(f=>f.role==='base') ? ` · 검수본 ${files.find(f=>f.role==='base').name}` : '')
+                    + ` · 참고 ${files.filter(f=>f.role==='ref').length}개`
+                  : '번역할 원문을 하나 골라주세요'}
+              </span>
+              <span style={{flex:1}} />
+              <button className="primary" disabled={!files.some(f=>f.role==='source')}
+                onClick={commitFiles}>다음 →</button>
+            </div>
+          </div>
+          )}
+
+          <p className="hint">
+            <b>번역할 원문 하나</b>를 고르고 나머지는 참고로 두세요.
+            참고 자막은 번역할 때 함께 읽히고, 표에서 나란히 비교됩니다.<br/>
+            업체 한글본을 <b>검수할 번역본</b>으로 두면 번역 없이 바로 결과 자리에 채워집니다.
+            규칙 위반은 <code>의심</code> 필터로 즉시 확인되고, 문제 있는 큐만 골라 다시 번역하면 됩니다.
+          </p>
+        </div>
+
+            {/* 02 전처리 */}
+      {raw && (
+      <div className="step">
+        <h2>02 — 전처리</h2>
+        <div className="grid g4">
+          <label className="f"><span className="cap">음향효과 <em>(Rumbling) 류</em></span>
+            <select value={dropSFX?'y':'n'} onChange={e=>setSFX(e.target.value==='y')}>
+              <option value="y">제외</option><option value="n">유지</option></select></label>
+          <label className="f"><span className="cap">느낌표 <em>외침·강한 어조</em></span>
+            <select value={bang?'y':'n'} onChange={e=>setBang(e.target.value==='y')}>
+              <option value="y">허용</option><option value="n">쓰지 않음</option></select></label>
+          {files.some(f => f.tc) &&
+            <label className="f"><span className="cap">프레임 TC <em>시퀀스와 같게</em></span>
+              <select value={fps} onChange={e=>setFps(e.target.value)}>
+                <option value="23.976">23.976</option><option value="24">24</option>
+                <option value="25">25</option><option value="29.97">29.97</option>
+                <option value="30">30</option>
+              </select></label>}
+          <label className="f"><span className="cap">프레임레이트 보정</span>
+            <select value={scale} onChange={e=>setScale(e.target.value)}>
+              <option value="1">없음</option>
+              <option value="1.001">24 → 23.976 (×1.001)</option>
+              <option value="0.999001">23.976 → 24 (÷1.001)</option>
+              <option value="1.0427">25 → 23.976</option>
+              <option value="0.95904">23.976 → 25 (PAL)</option>
+            </select></label>
+          <label className="f"><span className="cap">싱크 오프셋 <em>초</em></span>
+            <input type="number" step="0.001" value={offset} onChange={e=>setOffset(e.target.value)} /></label>
+          <label className="f"><span className="cap">한 줄 최대 <em>공백 제외</em></span>
+            <input type="number" min="6" max="30" value={lim} onChange={e=>setLim(+e.target.value||13)} /></label>
+          <label className="f"><span className="cap">원문 언어 <em>자동 감지</em></span>
+            <select value={srcLang} onChange={e=>setSrcLang(e.target.value)}>
+              <option value="en">영어</option>
+              <option value="zh">중국어</option>
+            </select></label>
+        </div>
+        <p className="hint">원본 {raw.length}큐 → 번역 대상 <b>{prepared.length}큐</b> (제외 {raw.length - prepared.length}개)</p>
+
+        {songs.length > 0 && (
+          <div style={{marginTop:14, borderTop:'1px solid rgba(255,255,255,.08)', paddingTop:12}}>
+            <div className="row" style={{marginBottom:8}}>
+              <b style={{fontSize:12}}>♪ 노래 구간 {songs.length}개</b>
+              <span className="hint">극 중에서 실제로 흐르는 노래(무대 공연·인물이 부르는 노래)는 번역하고, 배경 삽입곡·엔드크레딧곡은 보통 제외합니다</span>
+            </div>
+            <div className="songhead">
+              <span>번역 여부</span><span>구간</span><span>곡</span><span className="num">큐</span><span>가사</span>
+            </div>
+            {songs.map(s => {
+              const on = songOn.has(s.id);
+              return (
+                <div key={s.id} className="songrow">
+                  <button className="sm" style={on ? {background:'rgba(52,211,153,.18)', borderColor:'rgba(52,211,153,.6)', color:'#6ee7b7'} : undefined}
+                    onClick={() => setSongOn(p => { const n = new Set(p); n.has(s.id) ? n.delete(s.id) : n.add(s.id); return n; })}>
+                    {on ? '번역함' : '제외'}
+                  </button>
+                  <span className="tc">{s2t(s.from).slice(0,8)} ~ {s2t(s.to).slice(0,8)}</span>
+                  <span className="ttl" title={s.title}>{s.title}</span>
+                  <span className="num" style={{fontSize:11.5, color:'#94a3b8'}}>{s.total}</span>
+                  <span className={s.lyricCount ? 'pill' : 'pill warn'}>
+                    {s.lyricCount ? `가사 ${s.lyricCount}줄` : '표기만'}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* 03 번역 설정 */}
+      {raw && (
+      <div className="step">
+        <h2>03 — 번역 설정</h2>
+        <div className="grid" style={{gridTemplateColumns:'minmax(240px,2fr) minmax(150px,1fr) minmax(120px,1fr)', marginBottom:14}}>
+          <label className="f"><span className="cap">Anthropic API 키 <em>이 브라우저에만 저장</em></span>
+            <input type="password" placeholder="sk-ant-..." value={key} onChange={e=>setKey(e.target.value)} /></label>
+          <label className="f"><span className="cap">모델</span>
+            <select value={model} onChange={e=>setModel(e.target.value)}>
+              <option value="claude-opus-5">Opus 5 (품질)</option>
+              <option value="claude-sonnet-5">Sonnet 5 (저렴·빠름)</option>
+            </select></label>
+          <label className="f"><span className="cap">추론 강도</span>
+            <select value={effort} onChange={e=>setEffort(e.target.value)}>
+              <option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
+            </select></label>
+        </div>
+        <div className="row" style={{marginBottom:8}}>
+          <button className="sm" onClick={() => setTerms(extractTerms(prepared))}>원문에서 용어 후보 뽑기</button>
+          <span className="hint" style={{margin:0}}>
+            자주 나오는 고유명사·호칭을 세어 보여줍니다. 눌러서 용어집에 넣고 <b>번역할 표기를 정해주세요.</b>
+            비워두면 <code>King Man → 킹맨</code>처럼 호칭을 인명으로 오역합니다.</span>
+        </div>
+        {terms.length > 0 && (
+          <div className="row" style={{marginBottom:12, gap:6}}>
+            {terms.map(([w,n]) => (
+              <button key={w} className="sm" onClick={() => {
+                if (new RegExp('^'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*→','m').test(gloss)) return;
+                setGloss(g => (g ? g.replace(/\s*$/,'') + '\n' : '') + w + ' → ');
+              }}>{w} <span style={{color:'#64748b'}}>{n}</span></button>
+            ))}
+            <button className="sm" onClick={() => setTerms([])}>닫기</button>
+          </div>
+        )}
+        <div className="grid g3">
+          <label className="f"><span className="cap">고유명사·용어 고정</span>
+            <textarea rows="4" placeholder={"Mike Tyler → 마이크 타일러\nJoan → 조앤 (아서의 누나)\nCenturion → 센추리온"}
+                      value={gloss} onChange={e=>setGloss(e.target.value)} /></label>
+          <label className="f"><span className="cap">톤·수위</span>
+            <textarea rows="4" value={tone} onChange={e=>setTone(e.target.value)} /></label>
+          <label className="f"><span className="cap">작품 메모 <em>장르·인물관계</em></span>
+            <textarea rows="4" placeholder="기후 자선행사 인질극. 배우 마이크가 주인공." value={notes} onChange={e=>setNotes(e.target.value)} /></label>
+        </div>
+        <div className="row" style={{marginTop:12}}>
+          <button className="primary" disabled={busy || !prepared.length} onClick={translate}>
+            {busy ? '번역 중…' : `${prepared.length}큐 번역 시작`}</button>
+          {prog && <span className="pill">{prog.done} / {prog.total}</span>}
+        </div>
+        {prog && <div className="bar" style={{marginTop:8}}><i style={{width:`${prog.done/prog.total*100}%`}} /></div>}
+        {err && <div className="err">{err}</div>}
+      </div>
+      )}
+
+      {/* 04 검수 */}
+      {cues.length > 0 && (
+      <div className="step">
+        <h2>04 — 검수 · 수정</h2>
+        <div className="row" style={{marginBottom:10}}>
+          <button className={filter==='all'?'primary':''} onClick={()=>setFilter('all')}>전체 {cues.length}</button>
+          <button className={filter==='sus'?'primary':''} onClick={()=>setFilter('sus')}>의심 {susCount}</button>
+          <button className={filter==='edit'?'primary':''} onClick={()=>setFilter('edit')}>수정됨 {cues.filter(c=>c.edited).length}</button>
+          <input id="refpick" type="file" accept=".srt,.stl,.txt" hidden multiple
+            onChange={e => { [...e.target.files].forEach(readRef); e.target.value=''; }} />
+          <button title="중문 원본이나 업체 납품 자막을 불러와 나란히 비교합니다 (여러 개 가능)"
+            onClick={() => document.getElementById('refpick').click()}>참고 자막 불러오기</button>
+          {refs.map(r => (
+            <span key={r.label} className="pill">{r.label} {r.cues.length}큐
+              <button className="sm" style={{padding:'0 5px',height:18}} title="이 참고 자막 제거"
+                onClick={() => { setRefs(p => p.filter(x => x.label !== r.label));
+                  setCues(p => p.map(c => { const q={...(c.refs||{})}; delete q[r.label]; return {...c, refs:q}; })); }}>×</button>
+            </span>
+          ))}
+          <span style={{flex:1}} />
+          <button title="⏎ 정리 · 자동 줄바꿈 · 줄 끝 쉼표/고아 대시 제거를 지금 결과 전체에 다시 적용합니다"
+            onClick={() => setCues(prev => prev.map(c => {
+              const ko = finalize(c.ko||'', { keepNote, lim, kind: c.kind });
+              return ko === (c.ko||'') ? c : { ...c, ko, edited: true };
+            }))}>표기 일괄 정리</button>
+          <button title="인접한 짧은 큐를 묶고, 다음 큐가 시작할 때까지 표시시간을 늘립니다 (업체 납품 기준). 타이밍만 바뀌고 번역은 그대로입니다"
+            onClick={() => setCues(prev => {
+              const before = prev.map(c => `${c.in}|${c.out}|${c.ko||''}`);
+              return respot(prev, lim).map((c, i) =>
+                before[i] === `${c.in}|${c.out}|${c.ko||''}` ? c : { ...c, edited: true });
+            })}>스포팅 적용</button>
+          {cues.some(c => (c.ko||'').includes('♪')) &&
+            <button onClick={() => setCues(prev => prev.map(c => {
+              const ko = stripNote(c.ko||'', false);
+              return ko === (c.ko||'') ? c : { ...c, ko, edited: true };
+            }))}>♪ 모두 제거</button>}
+          <span className={susCount ? 'pill warn' : 'pill ok'}>{susCount ? `검토 필요 ${susCount}건` : '규칙 위반 없음'}</span>
+          <span className="pill">{subCount ? `서브 ${subCount}건` : '전부 본편'}</span>
+          <button title="전체가 기울임이거나 제목인 큐를 서브 후보로 표시합니다. 대사와 겹치는 것만 남기고 되돌려 주세요."
+            onClick={() => setCues(p => p.map(c =>
+              isScreenInfo(c.ko||'', c.en||'') ? { ...c, track:'sub' } : c))}>화면 정보 표시</button>
+          {subCount > 0 &&
+            <button onClick={() => setCues(p => p.map(c => c.track === 'sub' ? { ...c, track:'main' } : c))}>서브 해제</button>}
+          <button title="표기 규칙별로 몇 건이 걸렸는지 모아 봅니다"
+            onClick={() => setShowRules(v => !v)}>{showRules ? '표기 검수 닫기' : '표기 검수'}</button>
+          <button className="primary" onClick={download}>한글 SRT 내려받기</button>
+        </div>
+        {showRules && (
+          <div className="rulebox">
+            <div className="rulehead">
+              표기 검수 — <b>{ruleStat.total}</b>건
+              {!cues.some(c => /<i>/.test(c.en || '')) &&
+                <em> · 원문에 기울임 태그가 없어 기울임 항목은 검사되지 않았습니다</em>}
+            </div>
+            {ruleStat.rows.length === 0
+              ? <div className="ruleempty">걸린 항목이 없습니다</div>
+              : <div className="rulegrid">
+                  {ruleStat.rows.map(([name, n]) => (
+                    <button key={name} className="rulechip"
+                      onClick={() => { setFilter('sus'); setRuleQ(name === ruleQ ? '' : name); }}
+                      style={ruleQ === name ? { borderColor:'#38bdf8', color:'#e0f2fe' } : undefined}>
+                      {name}<span>{n}</span>
+                    </button>
+                  ))}
+                </div>}
+            <div className="rulefoot">
+              항목을 누르면 해당 큐만 걸러 봅니다. 기울임은 <b>원문에 있으면 옮기고 없으면 새로 넣지 않는</b> 것이 기준입니다.
+            </div>
+          </div>
+        )}
+        <p className="hint" style={{marginBottom:8}}>
+          한글 칸을 클릭하면 바로 고칠 수 있습니다 (Esc 취소, 포커스 해제 시 저장).
+          <code>줄바꿈 2안</code>은 API를 쓰지 않고 즉시, <code>재번역 2안</code>은 그 큐만 다시 번역합니다.
+        </p>
+        <div className="scroll">
+          <table>
+            <colgroup>
+              <col style={{width:52}} /><col style={{width:98}} />
+              <col style={{width: refCols.length ? '22%' : '32%'}} />
+              {refCols.map(l => <col key={l} style={{width:`${Math.max(14, 30 - refCols.length*6)}%`}} />)}
+              <col /><col style={{width:104}} />
+            </colgroup>
+            <thead><tr>
+              <th className="num">#</th><th>타임코드</th><th>원문</th>
+              {refCols.map(l => <th key={l}>{l}</th>)}
+              <th>한글 · 제안</th><th></th>
+            </tr></thead>
+            <tbody>
+              {view.map(([c, i]) => (
+                <MemoRow key={i} c={c} i={i} lim={lim} busy={busy} refCols={refCols}
+                  onChange={(v) => setKo(i, v)}
+                  onTrack={() => setCues(p => p.map((x, k) =>
+                    k === i ? { ...x, track: x.track === 'sub' ? 'main' : 'sub' } : x))}
+                  onSuggest={(re) => suggest(i, re)} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
