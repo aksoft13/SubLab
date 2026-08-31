@@ -983,6 +983,12 @@ function Row({ c, i, lim, onChange, onSuggest, onTrack, busy, refCols }) {
           <div onClick={() => setEditing(true)} style={{cursor:'text', minHeight:20}}>{c.ko || <span style={{color:'var(--dim3)'}}>—</span>}</div>
         )}
         {warns.length > 0 && <div className="why">⚠ {warns.join(' · ')}</div>}
+        {c.spell && (
+          <button className="sug" style={{borderColor:'rgba(52,211,153,.5)'}}
+            title="맞춤법 검사 제안 — 눌러서 적용"
+            onClick={() => onChange(c.spell.ko)}>
+            맞춤법 · {c.spell.why} → {c.spell.ko.replace(/\n/g, ' / ')}</button>
+        )}
         {c.sugg && c.sugg.map((s, k) => (
           <button key={k} className="sug" onClick={() => onChange(s)}>{k+1}안 · {s}</button>
         ))}
@@ -1206,6 +1212,41 @@ function App() {
   const setKo = useCallback((idx, v) => {
     setCues(prev => prev.map((c, i) => i === idx ? { ...c, ko: v, sugg: null, edited: true } : c));
   }, []);
+
+  /* 맞춤법 검사 — 고칠 것만 돌려받아 큐에 붙인다. 바로 반영하지 않고 제안으로 둔다. */
+  const spellcheck = async () => {
+    if (!key) { setErr('API 키를 입력하세요. 맞춤법 검사는 Claude 를 씁니다.'); return; }
+    const work = cues.map(c => ({ ...c, spell: null }));
+    const idx = work.map((c, i) => [c, i]).filter(([c]) => (c.ko || '').trim());
+    if (!idx.length) { setErr('검사할 자막이 없습니다.'); return; }
+    setErr(''); setBusy(true); setProg({ done: 0, total: idx.length });
+    let hit = 0;
+    try {
+      const B = 60;
+      for (let s0 = 0; s0 < idx.length; s0 += B) {
+        const chunk = idx.slice(s0, s0 + B);
+        const user = chunk.map(([c], i) => `${i+1}. ${c.ko.replace(/\n/g, ' ⏎ ')}`).join('\n');
+        const { text } = await callClaude({
+          key, model, effort, system: SPELL_PROMPT, user, schema: SPELL_SCHEMA, maxTokens: 8000 });
+        let fixes = [];
+        try { fixes = JSON.parse(text).fixes || []; }
+        catch (e) { throw new Error('응답 파싱 실패: ' + text.slice(0, 160)); }
+        for (const f of fixes) {
+          const pair = chunk[f.n - 1];
+          if (!pair || typeof f.ko !== 'string') continue;
+          const ko = f.ko.replace(/ ⏎ /g, '\n').trim();
+          if (!ko || ko === pair[0].ko) continue;
+          work[pair[1]].spell = { ko, why: (f.why || '맞춤법').slice(0, 24) };
+          hit++;
+        }
+        setCues([...work]);
+        setProg({ done: Math.min(s0 + B, idx.length), total: idx.length });
+      }
+      localStorage.setItem('ak', key);
+      setErr(hit ? '' : '맞춤법 문제를 찾지 못했습니다.');
+    } catch (e) { setErr('맞춤법 검사 중단: ' + e.message); }
+    setBusy(false);
+  };
 
   const suggest = useCallback(async (idx, retranslate) => {
     const c = cues[idx];
@@ -1537,6 +1578,16 @@ function App() {
       {cues.length > 0 && (
       <div className="step">
         <h2>04 — 검수 · 수정</h2>
+        {mode === 'review' && (
+          <div className="row" style={{marginBottom:10}}>
+            <label className="f" style={{flex:'1 1 320px', maxWidth:430}}>
+              <span className="cap">Anthropic API 키 <em>맞춤법 검사에만 씀 · 이 브라우저에만 저장</em></span>
+              <input type="password" placeholder="sk-ant-…  비워 두면 맞춤법 검사만 못 씁니다"
+                value={key} onChange={e=>setKey(e.target.value)} /></label>
+            {prog && <span className="pill">{prog.done} / {prog.total}</span>}
+          </div>
+        )}
+        {mode === 'review' && err && <div className="err" style={{marginBottom:10}}>{err}</div>}
         <div className="row" style={{marginBottom:10}}>
           <button className={filter==='all'?'primary':''} onClick={()=>setFilter('all')}>전체 {cues.length}</button>
           <button className={filter==='sus'?'primary':''} onClick={()=>setFilter('sus')}>의심 {susCount}</button>
@@ -1558,6 +1609,14 @@ function App() {
               const ko = finalize(c.ko||'', { keepNote, lim, kind: c.kind });
               return ko === (c.ko||'') ? c : { ...c, ko, edited: true };
             }))}>표기 일괄 정리</button>
+          <button disabled={busy || !cues.some(c => (c.ko||'').trim())}
+            title="Claude 로 맞춤법·띄어쓰기·오타만 검사합니다. 문장은 고치지 않고 제안으로 붙습니다"
+            onClick={spellcheck}>{busy ? '검사 중…' : '맞춤법 검사'}</button>
+          {cues.some(c => c.spell) &&
+            <button title="맞춤법 제안을 모두 적용합니다"
+              onClick={() => setCues(prev => prev.map(c =>
+                c.spell ? { ...c, ko: c.spell.ko, spell: null, edited: true } : c))}>
+              맞춤법 {cues.filter(c => c.spell).length}건 적용</button>}
           <button title="인접한 짧은 큐를 묶고, 다음 큐가 시작할 때까지 표시시간을 늘립니다 (업체 납품 기준). 타이밍만 바뀌고 번역은 그대로입니다"
             onClick={() => setCues(prev => {
               const before = prev.map(c => `${c.in}|${c.out}|${c.ko||''}`);
