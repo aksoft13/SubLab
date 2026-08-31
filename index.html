@@ -44,17 +44,33 @@
   .wrap { max-width:1400px; margin:0 auto; padding:24px 20px 80px; }
   h1 { font-size:20px; margin:0 0 4px; }
   .lede { color:var(--dim); font-size:13px; margin:0 0 22px; line-height:1.6; }
-  .tabs { display:flex; align-items:center; gap:7px; margin:0 0 16px; }
-  .tabs button { flex:0 0 auto; padding:10px 22px; border-radius:9px; cursor:pointer;
-    background:rgba(var(--tint),.05); border:0; color:var(--dim);
+  .tabs { display:flex; align-items:center; gap:13px; margin:0 0 16px; }
+  .tabbar { position:relative; display:flex; flex:0 0 auto; width:330px; padding:4px;
+    background:rgba(var(--tint),.05); border-radius:11px; }
+  .tabbar .ind { position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px);
+    border-radius:8px; background:var(--sky);
+    transition:transform .22s cubic-bezier(.4,0,.2,1); }
+  .tabbar.b2 .ind { transform:translateX(100%); }
+  .tabbar button { position:relative; z-index:1; flex:1; padding:9px 0; text-align:center;
+    background:transparent; border:0; cursor:pointer; color:var(--dim);
     font-size:14.5px; font-weight:700; letter-spacing:.2px; }
-  .tabs button:hover { background:rgba(var(--tint),.09); color:var(--ink2); }
-  .tabs button[aria-selected="true"] { background:var(--sky); color:var(--onsky); }
+  .tabbar button:hover { color:var(--ink2); }
+  .tabbar button[aria-selected="true"] { color:var(--onsky); }
+  @media (prefers-reduced-motion:reduce){ .tabbar .ind { transition:none; } }
   .tabnote { flex:1; margin:0; padding-left:6px; font-size:12px; color:var(--dim2); }
-  .theme { flex:0 0 auto; padding:8px 14px; border-radius:8px; cursor:pointer;
-    background:transparent; border:1px solid rgba(var(--tint),.16); color:var(--dim2);
-    font-size:11.5px; font-weight:600; letter-spacing:.06em; }
-  .theme:hover { color:var(--ink2); border-color:rgba(var(--tint),.3); }
+  .theme { position:relative; flex:0 0 auto; width:64px; height:32px; padding:0 8px;
+    border-radius:99px; cursor:pointer; color:var(--dim2);
+    background:rgba(var(--tint),.04); border:1px solid rgba(var(--tint),.18);
+    display:flex; align-items:center; justify-content:space-between; }
+  .theme:hover { border-color:rgba(var(--tint),.32); }
+  .theme .knob { position:absolute; top:3px; left:3px; width:24px; height:24px;
+    border-radius:99px; background:var(--sky);
+    transition:transform .22s cubic-bezier(.4,0,.2,1); }
+  .theme.dark .knob { transform:translateX(32px); }
+  .theme svg { position:relative; z-index:1; display:block; }
+  .theme .ic { stroke:currentColor; stroke-width:1.7; stroke-linecap:round;
+    stroke-linejoin:round; fill:none; }
+  @media (prefers-reduced-motion:reduce){ .theme .knob { transition:none; } }
   .step { background:var(--panel); border:1px solid rgba(var(--tint),.1); border-radius:14px; padding:16px 18px; margin-bottom:14px; }
   .step > h2 { font-size:13px; margin:0 0 12px; color:var(--sky2); letter-spacing:.3px; }
   .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
@@ -1000,11 +1016,14 @@ function App() {
   const [scale, setScale]   = useState('1');    // 프레임레이트 보정
   const [fps, setFps]       = useState('23.976');  // 프레임 타임코드 해석용
   const [mode, setMode]     = useState('translate');   // translate | review
-  // 화면 밝기 — 0 시스템 · 1 밝게 · 2 어둡게. 앱 기본은 어두운 화면이다.
-  const [theme, setTheme]   = useState(() => { try { return +(localStorage.getItem('sublab-theme')||0)||0; } catch(e) { return 0; } });
+  // 화면 밝기 — 밝게 / 어둡게 두 가지.
+  // 고른 적이 없으면 OS 설정을 따르고, 한 번 누르면 그때부터 고른 값으로 고정된다.
+  const [theme, setTheme] = useState(() => {
+    try { const v = localStorage.getItem('sublab-theme'); if (v === 'light' || v === 'dark') return v; } catch(e) {}
+    return (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  });
   useEffect(() => {
-    const V = ['', 'light', 'dark'], R = document.documentElement;
-    if (V[theme]) R.setAttribute('data-theme', V[theme]); else R.removeAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', theme);
     try { localStorage.setItem('sublab-theme', theme); } catch(e) {}
   }, [theme]);
   const [offset, setOffset] = useState('0');
@@ -1280,19 +1299,32 @@ function App() {
         파일은 브라우저 안에서만 처리되고 <b>번역할 때만</b> Anthropic API로 전송됩니다 — 변환·검수는 API 키 없이 됩니다.
       </p>
 
-      <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={mode==='translate'}
-          onClick={() => { if (mode!=='translate') { setMode('translate'); reset(); } }}>
-          자막 번역</button>
-        <button role="tab" aria-selected={mode==='review'}
-          onClick={() => { if (mode!=='review') { setMode('review'); reset(); } }}>
-          자막 검수</button>
+      <div className="tabs">
+        <div className={'tabbar' + (mode==='review' ? ' b2' : '')} role="tablist">
+          <span className="ind" aria-hidden="true" />
+          <button role="tab" aria-selected={mode==='translate'}
+            onClick={() => { if (mode!=='translate') { setMode('translate'); reset(); } }}>
+            자막 번역</button>
+          <button role="tab" aria-selected={mode==='review'}
+            onClick={() => { if (mode!=='review') { setMode('review'); reset(); } }}>
+            자막 검수</button>
+        </div>
         <span className="tabnote">{mode==='translate'
           ? '해외 자막(중국어·영어)을 한글로 번역하고 검수합니다 · API 키 필요'
           : '이미 한글인 자막을 검수만 합니다 · API 키 없이 됩니다'}</span>
-        <button className="theme" onClick={() => setTheme((theme+1)%3)}
-          title="화면 밝기 — 시스템 / 밝게 / 어둡게">
-          {['시스템','밝게','어둡게'][theme]}</button>
+        <button className={'theme' + (theme==='dark' ? ' dark' : '')}
+          onClick={() => setTheme(theme==='dark' ? 'light' : 'dark')}
+          aria-label="화면 밝기 전환"
+          title={theme==='dark' ? '어둡게 — 눌러서 밝게' : '밝게 — 눌러서 어둡게'}>
+          <span className="knob" aria-hidden="true" />
+          <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+            <circle className="ic" cx="12" cy="12" r="4.2"/>
+            <g className="ic"><path d="M12 2.6v2.2M12 19.2v2.2M4.2 12H2M22 12h-2.2M6.5 6.5 5 5M19 19l-1.5-1.5M17.5 6.5 19 5M5 19l1.5-1.5"/></g>
+          </svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+            <path className="ic" d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.8 8.8 0 1 0 11.1 11.1Z"/>
+          </svg>
+        </button>
       </div>
 
       {/* 01 파일 */}

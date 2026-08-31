@@ -1,0 +1,204 @@
+<title>탭 디자인 20안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Roboto+Mono:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#0b0f14; --panel:#0d1117; --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.22);
+  --ink:#e2e8f0; --dim:#94a3b8; --dim2:#64748b;
+  --sky:#38bdf8; --sky2:#7dd3fc; --skybg:rgba(56,189,248,.18);
+  --warn:#fbbf24;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+  font-size:14px;line-height:1.75;word-break:keep-all;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 22px 100px}
+.mono{font-family:"Roboto Mono",ui-monospace,monospace}
+
+header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:26px}
+.eyebrow{font-family:"Roboto Mono",monospace;font-size:11px;letter-spacing:.18em;color:var(--dim2)}
+h1{font-size:32px;font-weight:900;letter-spacing:-.02em;margin:10px 0 8px}
+.lede{color:var(--dim);margin:0;max-width:66ch}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.v{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px 17px;
+  display:flex;flex-direction:column;gap:11px}
+.v.pick{border-color:var(--sky);box-shadow:0 0 0 1px rgba(56,189,248,.25)}
+.vh{display:flex;align-items:baseline;gap:8px}
+.vn{font-family:"Roboto Mono",monospace;font-size:11px;color:var(--sky);font-weight:700}
+.vt{font-size:14px;font-weight:700}
+.vd{font-size:12px;color:var(--dim2);margin:0;line-height:1.6}
+.stage{background:var(--bg);border-radius:10px;padding:14px 13px;min-height:62px;
+  display:flex;align-items:center}
+button{font-family:inherit;cursor:pointer}
+
+/* ── 01 알약 (현재) */
+.s1{display:flex;gap:6px}
+.s1 b{padding:9px 20px;border-radius:10px;background:var(--panel);border:1px solid var(--line);
+  color:var(--dim);font-size:14px;font-weight:600}
+.s1 b.on{background:#0b2942;border-color:var(--sky);color:var(--sky2)}
+/* ── 02 밑줄 */
+.s2{display:flex;gap:22px;border-bottom:1px solid var(--line);width:100%}
+.s2 b{padding:8px 2px 10px;color:var(--dim2);font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}
+.s2 b.on{color:var(--sky2);border-bottom-color:var(--sky)}
+/* ── 03 굵은 밑줄 + 발광 */
+.s3{display:flex;gap:24px;width:100%}
+.s3 b{padding:8px 2px 11px;color:var(--dim2);font-weight:700;border-bottom:3px solid transparent}
+.s3 b.on{color:#fff;border-bottom-color:var(--sky);filter:drop-shadow(0 3px 8px rgba(56,189,248,.55))}
+/* ── 04 윗줄 */
+.s4{display:flex;gap:8px}
+.s4 b{padding:11px 20px 9px;color:var(--dim2);font-weight:600;border-top:3px solid transparent;
+  background:rgba(255,255,255,.02);border-radius:0 0 8px 8px}
+.s4 b.on{color:var(--sky2);border-top-color:var(--sky);background:rgba(56,189,248,.08)}
+/* ── 05 솔리드 */
+.s5{display:flex;gap:7px}
+.s5 b{padding:10px 22px;border-radius:9px;background:rgba(255,255,255,.05);color:var(--dim);font-weight:700}
+.s5 b.on{background:var(--sky);color:#06121c}
+/* ── 06 세그먼트 */
+.s6{display:inline-flex;gap:3px;background:rgba(255,255,255,.05);padding:4px;border-radius:11px}
+.s6 b{padding:8px 22px;border-radius:8px;color:var(--dim);font-weight:600}
+.s6 b.on{background:var(--panel);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+/* ── 07 카드 */
+.s7{display:flex;gap:9px;width:100%}
+.s7 b{flex:1;padding:11px 13px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.02)}
+.s7 b.on{border-color:var(--sky);background:rgba(56,189,248,.10)}
+.s7 i{display:block;font-style:normal;font-weight:700;font-size:14px;color:var(--dim)}
+.s7 b.on i{color:var(--sky2)}
+.s7 em{display:block;font-style:normal;font-size:11px;color:var(--dim2);margin-top:2px}
+/* ── 08 좌측 바 */
+.s8{display:flex;flex-direction:column;gap:5px;width:100%}
+.s8 b{padding:8px 14px;border-left:3px solid transparent;color:var(--dim2);font-weight:600}
+.s8 b.on{border-left-color:var(--sky);color:var(--sky2);background:rgba(56,189,248,.07)}
+/* ── 09 그라디언트 */
+.s9{display:flex;gap:7px}
+.s9 b{padding:10px 22px;border-radius:10px;color:var(--dim);font-weight:700;border:1px solid var(--line)}
+.s9 b.on{background:linear-gradient(135deg,#0ea5e9,#6366f1);border-color:transparent;color:#fff}
+/* ── 10 아웃라인 */
+.s10{display:flex;gap:8px}
+.s10 b{padding:9px 21px;border-radius:99px;border:1.5px solid var(--line2);color:var(--dim);font-weight:600}
+.s10 b.on{border-color:var(--sky);color:var(--sky2);border-width:2px}
+/* ── 11 떠오름 */
+.s11{display:flex;gap:8px}
+.s11 b{padding:10px 21px;border-radius:10px;color:var(--dim);font-weight:600;background:rgba(255,255,255,.03)}
+.s11 b.on{background:#132b3d;color:#fff;transform:translateY(-2px);
+  box-shadow:0 6px 16px rgba(0,0,0,.55),0 0 0 1px rgba(56,189,248,.4)}
+/* ── 12 아이콘 */
+.s12{display:flex;gap:7px}
+.s12 b{padding:9px 18px;border-radius:10px;border:1px solid var(--line);color:var(--dim);font-weight:600;
+  display:inline-flex;align-items:center;gap:7px}
+.s12 b.on{border-color:var(--sky);background:rgba(56,189,248,.10);color:var(--sky2)}
+.s12 s{text-decoration:none;font-size:15px}
+/* ── 13 번호 */
+.s13{display:flex;gap:8px}
+.s13 b{padding:8px 18px 8px 9px;border-radius:10px;border:1px solid var(--line);color:var(--dim);
+  font-weight:600;display:inline-flex;align-items:center;gap:9px}
+.s13 b.on{border-color:var(--sky);color:var(--sky2);background:rgba(56,189,248,.08)}
+.s13 u{text-decoration:none;font-family:"Roboto Mono",monospace;font-size:11px;font-weight:700;
+  width:22px;height:22px;border-radius:6px;display:grid;place-items:center;
+  background:rgba(255,255,255,.07);color:var(--dim2)}
+.s13 b.on u{background:var(--sky);color:#06121c}
+/* ── 14 셰브론 */
+.s14{display:flex}
+.s14 b{padding:9px 26px 9px 22px;color:var(--dim2);font-weight:600;background:rgba(255,255,255,.04);
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%,12px 50%);margin-right:-10px}
+.s14 b:first-child{clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%);padding-left:18px}
+.s14 b.on{background:var(--sky);color:#06121c}
+/* ── 15 반전 */
+.s15{display:flex;gap:7px}
+.s15 b{padding:10px 22px;border-radius:8px;color:var(--dim);font-weight:700}
+.s15 b.on{background:#e2e8f0;color:#0b0f14}
+/* ── 16 네온 */
+.s16{display:flex;gap:9px}
+.s16 b{padding:10px 21px;border-radius:9px;border:1px solid var(--line);color:var(--dim2);font-weight:700}
+.s16 b.on{border-color:var(--sky);color:#eaf9ff;background:rgba(56,189,248,.10);
+  box-shadow:0 0 18px rgba(56,189,248,.45),inset 0 0 14px rgba(56,189,248,.18)}
+/* ── 17 풀너비 2등분 */
+.s17{display:flex;width:100%;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.s17 b{flex:1;padding:12px 0;text-align:center;color:var(--dim);font-weight:700}
+.s17 b.on{background:var(--skybg);color:var(--sky2);box-shadow:inset 0 -2px 0 var(--sky)}
+/* ── 18 태그 */
+.s18{display:flex;gap:6px}
+.s18 b{padding:5px 14px;border-radius:6px;font-size:12.5px;font-weight:700;
+  background:rgba(255,255,255,.06);color:var(--dim2)}
+.s18 b.on{background:rgba(56,189,248,.22);color:var(--sky2)}
+/* ── 19 슬라이더 */
+.s19{position:relative;display:flex;gap:0;width:100%;background:rgba(255,255,255,.04);border-radius:11px;padding:4px}
+.s19 b{flex:1;padding:9px 0;text-align:center;color:var(--dim);font-weight:700;position:relative;z-index:1}
+.s19 b.on{color:#06121c}
+.s19 .ind{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:8px;
+  background:var(--sky);transition:transform .22s cubic-bezier(.4,0,.2,1)}
+.s19.b2 .ind{transform:translateX(100%)}
+/* ── 20 스텝 */
+.s20{display:flex;gap:0;width:100%}
+.s20 b{flex:1;padding:9px 4px 11px;color:var(--dim2);font-weight:700;text-align:center;
+  border-bottom:2px solid var(--line)}
+.s20 b.on{color:#fff;border-bottom-color:var(--sky)}
+.s20 u{display:block;text-decoration:none;font-family:"Roboto Mono",monospace;font-size:10px;
+  letter-spacing:.14em;color:var(--dim2);margin-bottom:1px}
+.s20 b.on u{color:var(--sky)}
+
+footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);
+  font-family:"Roboto Mono",monospace;font-size:12px;color:var(--dim2);line-height:1.9}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">SUBLAB · TAB DESIGN</div>
+  <h1>탭 디자인 20안</h1>
+  <p class="lede">SubLab 의 실제 색과 배경에 얹어 그렸습니다.
+    눌러 보시면 전환이 그대로 동작합니다. 번호로 알려 주시면 앱에 적용하겠습니다.</p>
+</header>
+<div class="grid" id="g"></div>
+<footer>
+  바탕 #0b0f14 · 패널 #0d1117 · 강조 #38bdf8 / #7dd3fc<br>
+  2026-08-31
+</footer>
+</div>
+
+<script>
+const A = '자막 번역', B = '자막 검수';
+const V = [
+ [1,'알약 채움','지금 쓰는 것. 무난하지만 눈에 덜 띈다','s1',`<b>${A}</b><b class="on">${B}</b>`],
+ [2,'밑줄','문서 느낌. 조용하고 정갈하다','s2',`<b>${A}</b><b class="on">${B}</b>`],
+ [3,'굵은 밑줄 + 발광','밑줄을 굵게 하고 빛을 줬다. 멀리서도 보인다','s3',`<b>${A}</b><b class="on">${B}</b>`],
+ [4,'윗줄','탭이 위에서 내려온 느낌. 브라우저 탭과 비슷하다','s4',`<b>${A}</b><b class="on">${B}</b>`],
+ [5,'솔리드 채움','선택한 쪽이 하늘색으로 꽉 찬다. 가장 강하다','s5',`<b>${A}</b><b class="on">${B}</b>`],
+ [6,'세그먼트','트랙 안에서 미끄러지는 형태. iOS 설정 느낌','s6',`<b>${A}</b><b class="on">${B}</b>`],
+ [7,'카드 + 설명','무엇을 하는 탭인지 한 줄로 알려 준다','s7',
+   `<b><i>${A}</i><em>중국어·영어 → 한글</em></b><b class="on"><i>${B}</i><em>이미 한글인 자막</em></b>`],
+ [8,'좌측 세로 바','세로로 쌓는다. 탭이 늘어나도 안 좁아진다','s8',`<b>${A}</b><b class="on">${B}</b>`],
+ [9,'그라디언트','하늘–보라 그라데이션. 화려하지만 앱 톤과 겉돌 수 있다','s9',`<b>${A}</b><b class="on">${B}</b>`],
+ [10,'아웃라인 알약','테두리만. 가볍고 깔끔하다','s10',`<b>${A}</b><b class="on">${B}</b>`],
+ [11,'떠오름','선택한 탭이 위로 뜬다. 만질 수 있는 느낌','s11',`<b>${A}</b><b class="on">${B}</b>`],
+ [12,'아이콘 + 글자','뜻이 그림으로 먼저 읽힌다','s12',
+   `<b><s>🌐</s>${A}</b><b class="on"><s>🔍</s>${B}</b>`],
+ [13,'번호 배지','순서가 있는 작업임을 드러낸다','s13',
+   `<b><u>1</u>${A}</b><b class="on"><u>2</u>${B}</b>`],
+ [14,'셰브론','흐름이 한 방향임을 모양으로 말한다','s14',`<b>${A}</b><b class="on">${B}</b>`],
+ [15,'반전','선택한 쪽이 흰 바탕. 대비가 가장 세다','s15',`<b>${A}</b><b class="on">${B}</b>`],
+ [16,'네온','빛 번짐. 어두운 화면에서 확실히 튄다','s16',`<b>${A}</b><b class="on">${B}</b>`],
+ [17,'풀너비 2등분','화면 폭을 반씩 쓴다. 둘뿐임이 분명해진다','s17',`<b>${A}</b><b class="on">${B}</b>`],
+ [18,'작은 태그','제일 작고 가볍다. 부차적으로 보일 위험','s18',`<b>${A}</b><b class="on">${B}</b>`],
+ [19,'슬라이더','선택 표시가 미끄러져 이동한다. 전환이 눈에 남는다','s19',
+   `<span class="ind"></span><b>${A}</b><b class="on">${B}</b>`],
+ [20,'단계 표시','01 / 02 로 공정을 드러낸다','s20',
+   `<b><u>01</u>${A}</b><b class="on"><u>02</u>${B}</b>`],
+];
+document.getElementById('g').innerHTML = V.map(([n,t,d,c,inner]) => `
+  <div class="v">
+    <div class="vh"><span class="vn">${String(n).padStart(2,'0')}</span><span class="vt">${t}</span></div>
+    <div class="stage"><div class="${c}" data-s="${c}">${inner}</div></div>
+    <p class="vd">${d}</p>
+  </div>`).join('');
+document.getElementById('g').addEventListener('click', e => {
+  const b = e.target.closest('b'); if (!b) return;
+  const set = b.parentElement;
+  [...set.querySelectorAll('b')].forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  if (set.dataset.s === 's19') {
+    const i = [...set.querySelectorAll('b')].indexOf(b);
+    set.classList.toggle('b2', i === 1);
+  }
+});
+</script>

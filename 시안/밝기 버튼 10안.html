@@ -1,0 +1,129 @@
+<title>밝기 버튼 10안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Roboto+Mono:wght@400;500;700&display=swap">
+<style>
+:root{--bg:#0b0f14;--panel:#0d1117;--line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.22);
+  --ink:#e2e8f0;--dim:#94a3b8;--dim2:#64748b;--sky:#38bdf8;--sky2:#7dd3fc;--onsky:#06121c;--warn:#fbbf24;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans KR",-apple-system,sans-serif;font-size:14px;line-height:1.75;
+  word-break:keep-all;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:40px 22px 90px}
+header{border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:24px}
+.eyebrow{font-family:"Roboto Mono",monospace;font-size:11px;letter-spacing:.18em;color:var(--dim2)}
+h1{font-size:30px;font-weight:900;letter-spacing:-.02em;margin:10px 0 8px}
+.lede{color:var(--dim);margin:0;max-width:64ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:15px}
+.v{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px 16px;
+  display:flex;flex-direction:column;gap:10px}
+.vh{display:flex;align-items:baseline;gap:8px}
+.vn{font-family:"Roboto Mono",monospace;font-size:11px;color:var(--sky);font-weight:700}
+.vt{font-size:14px;font-weight:700}
+.vd{font-size:12px;color:var(--dim2);margin:0;line-height:1.6}
+.stage{background:var(--bg);border-radius:10px;padding:16px 14px;min-height:64px;
+  display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.stage .fake{flex:1;height:8px;border-radius:99px;background:rgba(255,255,255,.05)}
+button{font-family:inherit;cursor:pointer;color:inherit}
+svg{display:block}
+.t{stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.f{fill:currentColor}
+
+.b{background:transparent;border:1px solid var(--line2);border-radius:8px;color:var(--dim2);
+  padding:8px 13px;font-size:11.5px;font-weight:600;letter-spacing:.05em}
+.b:hover{color:var(--ink);border-color:var(--sky)}
+.i1{padding:8px 14px}
+.i2{display:inline-flex;align-items:center;gap:7px;padding:7px 13px}
+.i3{padding:8px;width:36px;height:36px;display:grid;place-items:center;border-radius:9px}
+.i4{padding:8px;width:36px;height:36px;display:grid;place-items:center;border-radius:99px}
+.seg{display:inline-flex;gap:2px;background:rgba(255,255,255,.05);padding:3px;border-radius:10px;border:0}
+.seg button{border:0;background:transparent;padding:7px 11px;border-radius:7px;color:var(--dim2);
+  display:grid;place-items:center}
+.seg button.on{background:var(--panel);color:var(--sky2);box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.sw{position:relative;width:64px;height:32px;border-radius:99px;border:1px solid var(--line2);
+  background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:space-between;
+  padding:0 8px;color:var(--dim2)}
+.sw .knob{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:99px;
+  background:var(--sky);transition:transform .22s cubic-bezier(.4,0,.2,1)}
+.sw.on .knob{transform:translateX(32px)}
+.sw svg{position:relative;z-index:1}
+.dots{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);
+  border-radius:99px;padding:6px 12px;background:transparent;color:var(--dim2)}
+.dots u{text-decoration:none;display:flex;gap:4px}
+.dots i{width:5px;height:5px;border-radius:99px;background:rgba(255,255,255,.22);display:block}
+.dots i.on{background:var(--sky)}
+.glow{border-color:rgba(56,189,248,.5);color:var(--sky2);
+  box-shadow:0 0 14px rgba(56,189,248,.28),inset 0 0 10px rgba(56,189,248,.10)}
+.plain{border:0;background:transparent;color:var(--dim2);padding:8px}
+.plain:hover{color:var(--sky2)}
+.rot svg{transition:transform .4s cubic-bezier(.4,0,.2,1)}
+.rot.on svg{transform:rotate(180deg)}
+footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);
+  font-family:"Roboto Mono",monospace;font-size:12px;color:var(--dim2);line-height:1.9}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">SUBLAB · THEME BUTTON</div>
+  <h1>밝기 버튼 10안</h1>
+  <p class="lede">탭 줄 오른쪽 끝에 놓이는 버튼입니다.
+    시스템 · 밝게 · 어둡게 세 상태를 돌거나, 둘만 오가는 형태도 있습니다.
+    눌러 보시면 상태가 바뀝니다.</p>
+</header>
+<div class="grid" id="g"></div>
+<footer>바탕 #0b0f14 · 강조 #38bdf8 · 2026-08-31</footer>
+</div>
+
+<script>
+const SUN = `<svg width="16" height="16" viewBox="0 0 24 24"><circle class="t" cx="12" cy="12" r="4.2"/><g class="t"><path d="M12 2.6v2.2M12 19.2v2.2M4.2 12H2M22 12h-2.2M6.5 6.5 5 5M19 19l-1.5-1.5M17.5 6.5 19 5M5 19l1.5-1.5"/></g></svg>`;
+const MOON = `<svg width="16" height="16" viewBox="0 0 24 24"><path class="t" d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.8 8.8 0 1 0 11.1 11.1Z"/></svg>`;
+const SYS  = `<svg width="16" height="16" viewBox="0 0 24 24"><rect class="t" x="2.8" y="4" width="18.4" height="12.4" rx="2"/><path class="t" d="M8.6 20h6.8M12 16.4V20"/></svg>`;
+const HALF = `<svg width="16" height="16" viewBox="0 0 24 24"><circle class="t" cx="12" cy="12" r="8.4"/><path class="f" d="M12 3.6a8.4 8.4 0 0 1 0 16.8Z"/></svg>`;
+
+const V = [
+ [1,'글자만','지금 쓰는 것. 뜻은 분명하지만 눈에 안 띈다',
+   `<button class="b i1">시스템</button>`],
+ [2,'아이콘만 · 네모','아이콘 하나. 자리를 가장 적게 쓴다',
+   `<button class="b i3" data-c="i">${SYS}</button>`],
+ [3,'아이콘만 · 원형','원형이라 다른 버튼과 구분된다',
+   `<button class="b i4" data-c="i">${MOON}</button>`],
+ [4,'아이콘 + 글자','뜻이 두 번 전달된다. 가장 안전하다',
+   `<button class="b i2" data-c="ib"><span>${SYS}</span><span data-l>시스템</span></button>`],
+ [5,'세그먼트 3칸','세 상태가 한눈에 보이고 바로 고를 수 있다',
+   `<div class="seg" data-c="seg"><button class="on">${SYS}</button><button>${SUN}</button><button>${MOON}</button></div>`],
+ [6,'스위치','해와 달 사이를 오간다. 두 상태만 쓸 때',
+   `<button class="sw" data-c="sw"><span class="knob"></span>${SUN}${MOON}</button>`],
+ [7,'점 표시','아이콘 옆에 지금 어느 상태인지 점으로',
+   `<button class="dots" data-c="dot">${SYS}<u><i class="on"></i><i></i><i></i></u></button>`],
+ [8,'반달 회전','누르면 반달이 돌아간다. 상태 변화가 느껴진다',
+   `<button class="b i3 rot" data-c="rot">${HALF}</button>`],
+ [9,'발광','어두운 화면에서 확실히 보인다. 다만 세다',
+   `<button class="b i2 glow" data-c="ib"><span>${MOON}</span><span data-l>어둡게</span></button>`],
+ [10,'테두리 없음','아이콘만 떠 있다. 가장 조용하다',
+   `<button class="plain" data-c="i">${SUN}</button>`],
+];
+document.getElementById('g').innerHTML = V.map(([n,t,d,h]) => `
+  <div class="v">
+    <div class="vh"><span class="vn">${String(n).padStart(2,'0')}</span><span class="vt">${t}</span></div>
+    <div class="stage"><span class="fake"></span>${h}</div>
+    <p class="vd">${d}</p>
+  </div>`).join('');
+
+const ICONS = [SYS, SUN, MOON], LBL = ['시스템','밝게','어둡게'];
+const st = new WeakMap();
+document.getElementById('g').addEventListener('click', e => {
+  const el = e.target.closest('[data-c]'); if (!el) return;
+  const kind = el.dataset.c;
+  const i = ((st.get(el) ?? 0) + 1) % 3; st.set(el, i);
+  if (kind === 'i')  el.innerHTML = ICONS[i];
+  if (kind === 'ib') { el.querySelector('span:first-child').innerHTML = ICONS[i];
+                       el.querySelector('[data-l]').textContent = LBL[i]; }
+  if (kind === 'dot'){ el.innerHTML = ICONS[i] + '<u>' +
+      [0,1,2].map(k => `<i class="${k===i?'on':''}"></i>`).join('') + '</u>'; }
+  if (kind === 'seg'){ const bs=[...el.querySelectorAll('button')];
+      const j = bs.indexOf(e.target.closest('button')); if (j<0) return;
+      bs.forEach(b=>b.classList.remove('on')); bs[j].classList.add('on'); }
+  if (kind === 'sw') el.classList.toggle('on');
+  if (kind === 'rot') el.classList.toggle('on');
+});
+</script>
