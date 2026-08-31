@@ -150,18 +150,27 @@ const RATES = {
   '23.976': { base:24, real:24000/1001 }, '24': { base:24, real:24 },
   '25':     { base:25, real:25 },
   '29.97':  { base:30, real:30000/1001 }, '30': { base:30, real:30 },
+  '29.97df':{ base:30, real:30000/1001, df:true },   // 세미콜론 표기
 };
+/* 세미콜론은 드롭프레임 신호다. 29.97 DF 전용 표기다. */
+function isDropFrame(text) {
+  for (const l of text.replace(/\r\n/g,'\n').split('\n')) {
+    const t = l.trim();
+    if (TCRE.test(t) && t.indexOf(';') >= 0) return true;
+  }
+  return false;
+}
 const TCNUM = '(\\d{1,2})[:;.](\\d{2})[:;.](\\d{2})[:;.,](\\d{2,3})';
 const TCSEP = '(?:\\s*(?:-->|->|--|[-~\u2013\u2014>])\\s*|\\s+)';
 const TCRE  = new RegExp('^' + TCNUM + TCSEP + TCNUM + '(.*)$');
 
-/* 프레임 타임코드 파일인가 — 타임코드 줄이 3개 이상이면 그렇게 본다 */
+/* 프레임 타임코드 파일인가.
+   서브 자막은 큐가 두어 개뿐인 경우가 흔하므로 개수로 거르지 않는다.
+   대신 SRT 화살표(-->)가 없어야 한다 — 있으면 SRT 파서가 맡는다. */
 function isFrameTC(text) {
-  let hit = 0;
-  for (const l of text.replace(/\r\n/g,'\n').split('\n')) {
-    if (TCRE.test(l.trim()) && ++hit >= 3) return true;
-  }
-  return false;
+  const lines = text.replace(/\r\n/g,'\n').split('\n');
+  if (lines.some(l => l.includes('-->'))) return false;
+  return lines.some(l => TCRE.test(l.trim()));
 }
 /* 마지막 자리가 60 이상이면 프레임일 수 없다 → 밀리초 */
 function tcIsMs(rows) {
@@ -177,9 +186,14 @@ function parseFrameTC(text, fps) {
   const rows = [], out = [];
   for (const l of lines) { const m = TCRE.exec(l.trim()); if (m) rows.push(m); }
   const ms = tcIsMs(rows);
-  const sec = (h,m2,s2,f) => ms
-    ? (+h*3600 + +m2*60 + +s2 + +f/1000)
-    : ((+h*3600 + +m2*60 + +s2) * rate.base + +f) / rate.real;
+  const sec = (h,m2,s2,f) => {
+    if (ms) return +h*3600 + +m2*60 + +s2 + +f/1000;
+    if (rate.df) {                                   // 드롭프레임 — 분마다 2프레임씩 건너뛴다
+      const tm = 60*+h + +m2;
+      return (108000*+h + 1800*+m2 + 30*+s2 + +f - 2*(tm - Math.floor(tm/10))) / rate.real;
+    }
+    return ((+h*3600 + +m2*60 + +s2) * rate.base + +f) / rate.real;
+  };
   let cur = null;
   for (const raw of lines) {
     const line = raw.replace(/\r+$/,'').trim();
@@ -197,7 +211,18 @@ function parseFrameTC(text, fps) {
     for (const t of line.split('\r')) { const v=t.trim(); if (v) cur.en.push(v); }
   }
   if (cur) out.push(cur);
-  return { cues: out.map(c => ({ in:c.in, out:c.out, en:c.en.join('\n') })), ms };
+  let maxF = 0;
+  for (const r of rows) maxF = Math.max(maxF, +r[4], +r[8]);
+  return { cues: out.map(c => ({ in:c.in, out:c.out, en:c.en.join('\n') })), ms, maxF };
+}
+
+/* 최대 프레임 값으로 프레임레이트 계열을 가린다.
+   텍스트만으로 23.976 과 24 는 구분되지 않는다. 계열까지가 한계다. */
+function fpsFamily(maxF, df) {
+  if (df)        return { fam:'29.97 DF', ok:false };
+  if (maxF <= 23) return { fam:'23.976 또는 24', ok:true };
+  if (maxF === 24) return { fam:'25', ok:false };
+  return { fam:'29.97 또는 30', ok:false };
 }
 
 // ISO 6937 결합 발음부호 (앞에 오고 다음 글자에 붙는다)
@@ -269,7 +294,7 @@ function detectSongs(cues, gap = 32) {
 
 /* songOn = 번역할 곡 id 집합. 켜져 있어도 `(♪ Music continues)` 같은
    음악 표기 줄은 대사가 아니므로 계속 제외한다. */
-function applyFilters(cues, { dropSFX, songOn, songMap }) {
+function applyFilters(cues, { dropSFX, songOn, songMap, keepEmpty }) {
   const kept = [];
   cues.forEach((c, i) => {
     const on = songMap[i] !== undefined && songOn.has(songMap[i]);
@@ -277,7 +302,9 @@ function applyFilters(cues, { dropSFX, songOn, songMap }) {
     if (!on) lines = lines.filter(l => !l.includes('♪'));
     if (dropSFX) lines = lines.filter(l => !isSFXLine(l));
     lines = lines.map(l => dropSFX ? stripSpeaker(l) : l.trim()).filter(Boolean);
-    if (lines.length) kept.push({ ...c, en: lines.join('\n'), kind: on ? 'lyric' : 'dialog' });
+    // 빈 큐는 번역할 게 없어 버리지만, 검수·변환에서는 자리를 맞추려 일부러 넣은 것이라 남긴다
+    if (lines.length || keepEmpty)
+      kept.push({ ...c, en: lines.join('\n'), kind: on ? 'lyric' : 'dialog' });
   });
   return kept;
 }
@@ -968,26 +995,36 @@ function App() {
     for (const file of [...list]) {
       try {
         const buf = await file.arrayBuffer();
-        let cues, info, tc = false;
+        let cues, info, tc = false, fam = null;
         if (/\.stl$/i.test(file.name)) {
           const r = parseSTL(buf); cues = r.cues; info = `STL · ${r.fps.toFixed(3)}fps`;
         } else {
           const txt = decodeText(buf);
           if (isFrameTC(txt)) {                       // 프리미어 텍스트 내보내기
-            const r = parseFrameTC(txt, fps);
+            const use = isDropFrame(txt) ? '29.97df' : fps;   // 세미콜론이면 드롭프레임
+            if (use !== fps) setFps(use);
+            const r = parseFrameTC(txt, use);
             cues = r.cues; tc = !r.ms;
-            info = r.ms ? '이미 SRT' : `프레임 TC · ${fps}fps`;
+            fam = r.ms ? null : fpsFamily(r.maxF, isDropFrame(txt));
+            info = r.ms ? '이미 SRT' : `프레임 TC · ${use.replace('df',' DF')}`;
           } else { cues = parseSRT(txt); info = 'SRT'; }
         }
         if (!cues.length) throw new Error('큐를 읽지 못했습니다');
-        added.push({ name: file.name, cues, info, tc, lang: detectLang(cues), role: 'ref' });
+        added.push({ name: file.name, cues, info, tc, fam, lang: detectLang(cues), role: 'ref' });
       } catch (e) { setErr(`${file.name}: ${e.message}`); }
     }
+    if (added.length) { setRaw(null); setCues([]); setMeta(''); setProg(null); }
     setFiles(prev => {
-      const merged = [...prev];
+      // 검수는 한 번에 한 편이다. 새로 넣은 파일만 남긴다.
+      const merged = mode === 'review' ? [] : [...prev];
       for (const a of added) if (!merged.some(m => m.name === a.name)) merged.push(a);
       // 번역 대상 자동 선택: 영어 > 중국어 순, 한국어는 참고로만
-      if (!merged.some(m => m.role === 'source')) {
+      if (mode === 'review') {
+        // 검수는 한 번에 한 편이다. 새로 넣은 파일이 검수 대상이 된다.
+        const last = added.length ? merged.find(m => m.name === added[added.length-1].name) : null;
+        for (const m of merged) m.role = 'ref';
+        if (last) last.role = 'source';
+      } else if (!merged.some(m => m.role === 'source')) {
         // 프리미어에서 뽑은 한글 자막은 번역 없이 바로 검수 대상이 된다
         const tcko = merged.find(m => m.tc && m.lang === 'ko');
         const pick = tcko || merged.find(m => m.lang === 'en') || merged.find(m => m.lang === 'zh');
@@ -1011,9 +1048,9 @@ function App() {
     setMeta(`${src.name} — ${src.info} · ${src.cues.length}큐 · ${LANG_NAME[src.lang]}`);
     setRefs(files.filter(f => f.role === 'ref')
                  .map(f => ({ label: f.name.replace(/\.[^.]+$/,'').slice(0,14), cues: f.cues })));
-    const b = files.find(f => f.role === 'base')
-              || (mode === 'review' ? src : null)               // 검수 모드는 원문이 곧 검수 대상
-              || (src.tc && src.lang === 'ko' ? src : null);
+    const b = mode === 'review' ? src                          // 검수 모드는 원문이 곧 검수 대상
+              : (files.find(f => f.role === 'base')
+                 || (src.tc && src.lang === 'ko' ? src : null));
     setBase(b ? { label: b.name.replace(/\.[^.]+$/,'').slice(0,14), cues: b.cues } : null);
     setCues([]); setProg(null);
     if (/\.stl$/i.test(src.name)) setScale('1');
@@ -1056,9 +1093,9 @@ function App() {
   const prepared = useMemo(() => {
     if (!raw) return [];
     const k = parseFloat(scale) || 1, o = parseFloat(offset) || 0;
-    return applyFilters(raw, { dropSFX, songOn, songMap })
+    return applyFilters(raw, { dropSFX, songOn, songMap, keepEmpty: mode === 'review' })
       .map(c => ({ ...c, in: c.in*k + o, out: c.out*k + o, ko: '', sugg: null, edited: false }));
-  }, [raw, dropSFX, songOn, songMap, scale, offset]);
+  }, [raw, dropSFX, songOn, songMap, scale, offset, mode]);
 
   const translate = async () => {
     if (!key) { setErr('API 키를 입력하세요.'); return; }
@@ -1270,9 +1307,17 @@ function App() {
                   : (mode==='review' ? '검수할 자막을 하나 골라주세요' : '번역할 원문을 하나 골라주세요')}
               </span>
               <span style={{flex:1}} />
+              <button onClick={reset}>비우기</button>
               <button className="primary" disabled={!files.some(f=>f.role==='source')}
                 onClick={commitFiles}>{mode==='review' ? '검수 시작 →' : '다음 →'}</button>
             </div>
+
+            {files.filter(f => f.fam && !f.fam.ok).map((f,i) => (
+              <div key={i} className="err" style={{marginTop:10}}>
+                <b>{f.name}</b> 은 <b>{f.fam.fam}</b> 계열입니다 — 납품 기준 <b>23.976</b> 이 아닙니다.<br/>
+                시퀀스 설정을 확인하세요. 프레임레이트가 어긋나면 타임코드가 통째로 밀립니다.
+              </div>
+            ))}
           </div>
           )}
 
@@ -1307,8 +1352,8 @@ function App() {
             <label className="f"><span className="cap">프레임 TC <em>시퀀스와 같게</em></span>
               <select value={fps} onChange={e=>setFps(e.target.value)}>
                 <option value="23.976">23.976</option><option value="24">24</option>
-                <option value="25">25</option><option value="29.97">29.97</option>
-                <option value="30">30</option>
+                <option value="25">25</option><option value="29.97">29.97 NDF</option>
+                <option value="29.97df">29.97 DF</option><option value="30">30</option>
               </select></label>}
           <label className="f"><span className="cap">프레임레이트 보정</span>
             <select value={scale} onChange={e=>setScale(e.target.value)}>
