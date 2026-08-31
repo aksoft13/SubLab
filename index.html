@@ -14,6 +14,14 @@
   .wrap { max-width:1400px; margin:0 auto; padding:24px 20px 80px; }
   h1 { font-size:20px; margin:0 0 4px; }
   .lede { color:#94a3b8; font-size:13px; margin:0 0 22px; line-height:1.6; }
+  .tabs { display:flex; gap:6px; margin:0 0 16px; }
+  .tabs button { flex:0 0 auto; padding:9px 20px; border-radius:10px; cursor:pointer;
+    background:#0d1117; border:1px solid rgba(255,255,255,.12); color:#94a3b8;
+    font-size:14px; font-weight:600; letter-spacing:.2px; }
+  .tabs button:hover { color:#cbd5e1; border-color:rgba(255,255,255,.22); }
+  .tabs button[aria-selected="true"] { background:#0b2942; border-color:#38bdf8; color:#7dd3fc; }
+  .tabs .note { flex:1; display:flex; align-items:center; padding-left:12px;
+    font-size:12px; color:#64748b; }
   .step { background:#0d1117; border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:16px 18px; margin-bottom:14px; }
   .step > h2 { font-size:13px; margin:0 0 12px; color:#7dd3fc; letter-spacing:.3px; }
   .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
@@ -895,6 +903,7 @@ function App() {
   const [songOn, setSongOn] = useState(new Set());   // 번역할 곡 구간 id
   const [scale, setScale]   = useState('1');    // 프레임레이트 보정
   const [fps, setFps]       = useState('23.976');  // 프레임 타임코드 해석용
+  const [mode, setMode]     = useState('translate');   // translate | review
   const [offset, setOffset] = useState('0');
   const [showRules, setShowRules] = useState(false);
   const [ruleQ, setRuleQ] = useState('');
@@ -967,10 +976,18 @@ function App() {
     setRefs(files.filter(f => f.role === 'ref')
                  .map(f => ({ label: f.name.replace(/\.[^.]+$/,'').slice(0,14), cues: f.cues })));
     const b = files.find(f => f.role === 'base')
-              || (src.tc && src.lang === 'ko' ? src : null);   // 프리미어 한글본은 자기 자신이 검수 대상
+              || (mode === 'review' ? src : null)               // 검수 모드는 원문이 곧 검수 대상
+              || (src.tc && src.lang === 'ko' ? src : null);
     setBase(b ? { label: b.name.replace(/\.[^.]+$/,'').slice(0,14), cues: b.cues } : null);
     setCues([]); setProg(null);
     if (/\.stl$/i.test(src.name)) setScale('1');
+  };
+
+  // 탭을 바꾸면 하던 작업을 비운다. 두 갈래가 섞이면 결과가 헷갈린다.
+  const reset = () => {
+    setFiles([]); setRaw(null); setCues([]); setMeta('');
+    setBase(null); setRefs([]); setTerms([]);
+    setProg(null); setErr(''); setSongOn(new Set());
   };
 
   // 참고 자막을 타임코드가 가장 많이 겹치는 큐에 붙인다
@@ -1150,6 +1167,18 @@ function App() {
         파일은 브라우저 안에서만 처리되고 <b>번역할 때만</b> Anthropic API로 전송됩니다 — 변환·검수는 API 키 없이 됩니다.
       </p>
 
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={mode==='translate'}
+          onClick={() => { if (mode!=='translate') { setMode('translate'); reset(); } }}>
+          자막 번역</button>
+        <button role="tab" aria-selected={mode==='review'}
+          onClick={() => { if (mode!=='review') { setMode('review'); reset(); } }}>
+          자막 검수</button>
+        <span className="note">{mode==='translate'
+          ? '해외 자막(중국어·영어)을 한글로 번역하고 검수합니다 · API 키 필요'
+          : '이미 한글인 자막을 검수만 합니다 · API 키 없이 됩니다'}</span>
+      </div>
+
       {/* 01 파일 */}
       <div className="step">
         <h2>01 — 자막 파일</h2>
@@ -1187,8 +1216,8 @@ function App() {
                   <select value={f.role} onChange={e => { const v=e.target.value; setFiles(p => p.map((x,k) =>
                     k===i ? {...x, role:v}
                           : ((v==='source'&&x.role==='source')||(v==='base'&&x.role==='base') ? {...x, role:'ref'} : x))); }}>
-                    <option value="source">번역할 원문</option>
-                    <option value="base">검수할 번역본</option>
+                    <option value="source">{mode==='review' ? '검수할 자막' : '번역할 원문'}</option>
+                    {mode==='translate' && <option value="base">검수할 번역본</option>}
                     <option value="ref">참고</option>
                   </select>
                 </div>
@@ -1202,21 +1231,29 @@ function App() {
                   ? `원문 ${files.find(f=>f.role==='source').name}`
                     + (files.some(f=>f.role==='base') ? ` · 검수본 ${files.find(f=>f.role==='base').name}` : '')
                     + ` · 참고 ${files.filter(f=>f.role==='ref').length}개`
-                  : '번역할 원문을 하나 골라주세요'}
+                  : (mode==='review' ? '검수할 자막을 하나 골라주세요' : '번역할 원문을 하나 골라주세요')}
               </span>
               <span style={{flex:1}} />
               <button className="primary" disabled={!files.some(f=>f.role==='source')}
-                onClick={commitFiles}>다음 →</button>
+                onClick={commitFiles}>{mode==='review' ? '검수 시작 →' : '다음 →'}</button>
             </div>
           </div>
           )}
 
+          {mode === 'translate' ? (
           <p className="hint">
             <b>번역할 원문 하나</b>를 고르고 나머지는 참고로 두세요.
             참고 자막은 번역할 때 함께 읽히고, 표에서 나란히 비교됩니다.<br/>
             업체 한글본을 <b>검수할 번역본</b>으로 두면 번역 없이 바로 결과 자리에 채워집니다.
             규칙 위반은 <code>의심</code> 필터로 즉시 확인되고, 문제 있는 큐만 골라 다시 번역하면 됩니다.
           </p>
+          ) : (
+          <p className="hint">
+            <b>검수할 한글 자막 하나</b>를 고르세요. SRT 도 되고 프리미어에서 뽑은 텍스트도 됩니다.<br/>
+            프리미어 텍스트는 <b>프레임레이트를 시퀀스와 같게</b> 맞춰야 타임코드가 맞습니다 — 02 에서 고릅니다.
+            원문이 있으면 참고로 함께 넣으세요. 표에서 나란히 비교됩니다.
+          </p>
+          )}
         </div>
 
             {/* 02 전처리 */}
@@ -1287,8 +1324,8 @@ function App() {
       </div>
       )}
 
-      {/* 03 번역 설정 */}
-      {raw && (
+      {/* 03 번역 설정 — 검수 모드에서는 필요 없다 */}
+      {raw && mode === 'translate' && (
       <div className="step">
         <h2>03 — 번역 설정</h2>
         <div className="grid" style={{gridTemplateColumns:'minmax(240px,2fr) minmax(150px,1fr) minmax(120px,1fr)', marginBottom:14}}>
