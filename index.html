@@ -169,6 +169,10 @@ function tcIsMs(rows) {
 }
 function parseFrameTC(text, fps) {
   const rate = RATES[fps] || RATES['23.976'];
+  /* 프리미어 텍스트 내보내기는 두 종류를 다르게 쓴다.
+     LF   — 큐와 큐 사이
+     CR   — 한 자막 안의 줄바꿈 (여기서 살려야 두 줄이 붙지 않는다)
+     CRLF 는 먼저 LF 로 눕힌다. */
   const lines = text.replace(/\r\n/g,'\n').split('\n');
   const rows = [], out = [];
   for (const l of lines) { const m = TCRE.exec(l.trim()); if (m) rows.push(m); }
@@ -183,13 +187,14 @@ function parseFrameTC(text, fps) {
     if (m) {
       if (cur) out.push(cur);
       cur = { in: sec(m[1],m[2],m[3],m[4]), out: sec(m[5],m[6],m[7],m[8]), en: [] };
-      const tail = (m[9]||'').replace(/^[\s|,;]+/,'').trim();
-      if (tail) cur.en.push(tail);
+      const tail = (m[9]||'').replace(/^[|,;]+/,'').trim();
+      if (tail) for (const t of tail.split('\r')) { const v=t.trim(); if (v) cur.en.push(v); }
       continue;
     }
-    if (!cur || !line) continue;
-    if (/^\d+$/.test(line)) continue;
-    cur.en.push(line);
+    if (!cur) continue;
+    if (!line.replace(/\r/g,'').trim()) continue;
+    if (/^\d+$/.test(line.trim())) continue;
+    for (const t of line.split('\r')) { const v=t.trim(); if (v) cur.en.push(v); }
   }
   if (cur) out.push(cur);
   return { cues: out.map(c => ({ in:c.in, out:c.out, en:c.en.join('\n') })), ms };
@@ -831,6 +836,37 @@ const ARR_SCHEMA = {
     required: ['n','ko'], additionalProperties: false } } },
   required: ['lines'], additionalProperties: false,
 };
+/* 맞춤법 검사 — 고칠 것만 돌려받는다. 멀쩡한 큐는 응답에 넣지 않는다. */
+const SPELL_SCHEMA = {
+  type: 'object',
+  properties: { fixes: { type: 'array', items: {
+    type: 'object',
+    properties: { n: { type: 'integer' }, ko: { type: 'string' }, why: { type: 'string' } },
+    required: ['n','ko','why'], additionalProperties: false } } },
+  required: ['fixes'], additionalProperties: false,
+};
+
+const SPELL_PROMPT = `너는 한국어 자막 교정자다. 맞춤법·띄어쓰기·오타만 고친다.
+
+[고치는 것]
+- 맞춤법 — 거에요→거예요, 안돼→안 돼, 하던가→하든가, 됬→됐, 웬지→왠지, 어떻해→어떡해
+- 띄어쓰기 — 하는거야→하는 거야, 그런게→그런 게
+  원형이 있으면 붙인다 (갈아입다·데려다주다·한잔하다). 개수를 뜻하면 띈다 (한 잔 더).
+- 붙어 버린 어절 — 줄바꿈이 사라져 두 단어가 붙은 경우. 그딴 거로내→그딴 거로 내
+- 오타 — 자판 실수, 자모 누락
+
+[고치지 않는 것]
+- 문장을 다시 쓰지 마라. 뜻·어투·길이를 바꾸지 마라.
+- 표기 부호(" " ' ' <i>)를 건드리지 마라.
+- 줄바꿈 위치를 바꾸지 마라. 입력의 줄 구조를 그대로 둔다.
+- 사투리·말버릇·비속어는 의도된 것이다. 고치지 마라.
+- 고유명사와 인명은 그대로 둔다.
+
+[출력]
+- 고칠 것이 있는 줄만 fixes 배열에 넣는다. 멀쩡하면 넣지 마라.
+- n 은 입력 번호, ko 는 고친 전체 문장, why 는 무엇을 왜 고쳤는지 열 자 안팎으로.
+- 확신이 없으면 넣지 마라. 틀린 지적이 놓친 것보다 나쁘다.`;
+
 const ALT_SCHEMA = {
   type: 'object',
   properties: { alts: { type: 'array', items: { type: 'string' } } },
