@@ -151,12 +151,14 @@
     border:1px solid var(--edge); border-radius:4px; padding:0 4px; margin-right:5px; }
   .tc s { text-decoration:none; color:var(--warn); display:block; font-size:10.5px; opacity:.85; }
   /* 상태 세그먼트 */
-  .seg { display:inline-flex; background:rgba(255,255,255,.05); padding:3px; border-radius:10px; gap:2px; flex:none; }
-  .seg button { border:0; background:transparent; padding:6px 13px; border-radius:8px; color:var(--dim2);
-    font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; display:inline-flex; gap:7px; align-items:center; }
+  .seg { display:inline-flex; background:rgba(var(--tint),.06); padding:3px; border-radius:10px; gap:2px; flex:none; }
+  .seg button { border:1px solid transparent; background:transparent; padding:0 13px; height:30px; border-radius:8px;
+    color:var(--dim2); font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer;
+    display:inline-flex; gap:7px; align-items:center; }
   .seg button b { font-family:var(--mono); font-size:11px; font-weight:700; color:var(--dim3); }
   .seg button:hover { color:var(--ink); }
-  .seg button.on { background:var(--panel); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.35); }
+  .seg button.on { background:var(--panel); color:var(--ink); border:1px solid rgba(var(--tint),.14);
+    box-shadow:0 1px 3px rgba(0,0,0,.2); }
   .seg button.on b { color:var(--sky); }
   /* 하위 필터 */
   .subf { display:flex; flex-wrap:wrap; gap:6px; align-items:center; min-height:40px;
@@ -164,16 +166,16 @@
   .subf .lb { font-family:var(--mono); font-size:10px; letter-spacing:.11em; color:var(--dim3); margin-right:3px; }
   .subf .msg { font-size:12px; color:var(--dim2); }
   .chip { font-family:inherit; font-size:12px; cursor:pointer; background:transparent;
-    border:1px solid var(--edge); border-radius:99px; padding:4px 11px; color:var(--dim);
+    border:1px solid var(--edge); border-radius:99px; padding:0 11px; height:28px; color:var(--dim);
     display:inline-flex; align-items:center; gap:7px; }
   .chip .dot { width:7px; height:7px; border-radius:99px; background:var(--k,var(--dim3)); flex:none; }
   .chip b { font-family:var(--mono); font-size:11px; font-weight:700; }
-  .chip.on { background:rgba(255,255,255,.07); color:var(--k,var(--sky)); border-color:currentColor; }
+  .chip.on { background:rgba(var(--tint),.07); color:var(--k,var(--sky)); border-color:currentColor; }
   .chip.z { opacity:.4; }
   /* 단계 레일 */
   .rail { display:flex; width:100%; overflow-x:auto; margin:2px 0 12px; }
-  .rail .st { flex:1 1 0; min-width:112px; padding:9px 6px 11px; text-align:center; background:transparent;
-    border:0; border-bottom:2px solid var(--edge); font-family:inherit; font-size:13px; font-weight:700;
+  .rail .st { flex:1 1 0; min-width:112px; height:auto; padding:9px 6px 11px; text-align:center; background:transparent;
+    border:0; border-bottom:2px solid var(--edge); border-radius:0; font-family:inherit; font-size:13px; font-weight:700;
     color:var(--dim2); cursor:pointer; transition:color .15s, border-color .15s; }
   .rail .st u { display:block; text-decoration:none; font-family:var(--mono); font-size:10px;
     letter-spacing:.14em; color:var(--dim3); margin-bottom:2px; }
@@ -191,7 +193,7 @@
   .detail .dd { font-size:12.5px; color:var(--dim); margin:0 0 8px; line-height:1.65; }
   .detail .cau { font-size:12px; color:var(--warn); margin:0 0 8px; }
   .chg { margin:0; padding:0; list-style:none; font-size:12.5px; max-height:260px; overflow-y:auto; }
-  .chg li { padding:7px 0; border-bottom:1px solid rgba(255,255,255,.055);
+  .chg li { padding:7px 0; border-bottom:1px solid rgba(var(--tint),.09);
     display:flex; gap:10px; align-items:flex-start; }
   .chg li:last-child { border-bottom:0; }
   .chg .cn { font-family:var(--mono); font-size:11px; color:var(--dim3); min-width:40px; flex:none; padding-top:2px; }
@@ -1066,7 +1068,7 @@ const STEP_DEFS = [
   { id:'dl', n:'한글 SRT 내려받기', k:'EXPORT', sub:'납품 파일 저장', fin:true,
     d:'본편과 서브를 각각 SRT로 저장합니다. 앞 단계가 모두 끝난 뒤 마지막에 누릅니다.' },
 ];
-function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols, showWas }) {
+function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols, showWas, showEn }) {
   const [editing, setEditing] = useState(false);
   const warns = inspect(c.ko || '', lim, c.kind, c.en || '', c.out - c.in);
   return (
@@ -1076,7 +1078,7 @@ function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols,
         {c.tin0 !== undefined && <><s>{s2t(c.tin0)}</s><s>{s2t(c.tout0)}</s></>}
         {s2t(c.in)}<br/>{s2t(c.out)}
       </td>
-      <td className="en">{c.en}</td>
+      {showEn && <td className="en">{c.en}</td>}
       {refCols.map(lab => {
         const t = (c.refs || {})[lab] || '';
         return (
@@ -1122,10 +1124,12 @@ function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols,
         ))}
       </td>
       <td>
-        <div style={{display:'grid', gap:4}}>
-          <button className="sm" disabled={busy} onClick={() => onSuggest(false)}>줄바꿈 2안</button>
-          <button className="sm" disabled={busy} onClick={() => onSuggest(true)}>재번역 2안</button>
-          <button className="sm" onClick={onTrack}
+        <div style={{display:'grid', gap:4, gridTemplateColumns:'1fr 1fr'}}>
+          <button className="sm" disabled={busy} title="API 없이 즉시 — 줄바꿈 2안"
+            onClick={() => onSuggest(false)}>줄바꿈</button>
+          <button className="sm" disabled={busy} title="이 큐만 다시 번역 — 2안"
+            onClick={() => onSuggest(true)}>재번역</button>
+          <button className="sm" onClick={onTrack} style={{gridColumn:'1 / -1'}}
             title="대사와 겹치는 화면 정보만 서브로 뺍니다"
             style={c.track === 'sub'
               ? { background:'var(--sub)', borderColor:'var(--subEdge)', color:'var(--subInk)' }
@@ -1187,6 +1191,7 @@ function App() {
   const [step, setStep]   = useState(null);     // 펼친 단계
   const [tick, setTick]   = useState(0);        // 되돌리기 버튼 갱신
   const [saved, setSaved] = useState('');       // 저장 상태
+  const [keySaved, setKeySaved] = useState(() => !!localStorage.getItem('ak'));
   const past = useRef([]), future = useRef([]);
 
   // 여러 파일을 한 번에 읽고 언어를 감지해 역할을 미리 정해 둔다
@@ -1493,6 +1498,8 @@ function App() {
   }, [cues]);
 
   const editCount = useMemo(() => cues.filter(c => c.edited).length, [cues]);
+  /* 검수 모드는 원문이 비어 있다 — 빈 컬럼이 자리만 차지하지 않게 숨긴다 */
+  const showEn = useMemo(() => cues.some(c => (c.en || '').trim()), [cues]);
 
   /* 찾기 · 바꾸기 — 지금 화면에 보이는 큐에만 적용한다 */
   const replaceAll = () => {
@@ -1564,6 +1571,9 @@ function App() {
     if (id === 'scr')  return cues.filter(c => c.track !== 'sub' && isScreenInfo(c.ko||'', c.en||'')).length;
     return 0;
   };
+
+  const saveKey = () => { if (!key) return; localStorage.setItem('ak', key); setKeySaved(true); setSaved('API 키 저장됨'); };
+  const clearKey = () => { localStorage.removeItem('ak'); setKey(''); setKeySaved(false); setSaved('API 키 지움'); };
 
   /* 저장 — 자동(브라우저) + 작업 파일(.sublab.json) */
   const workName = () => (meta.split(' —')[0] || 'subtitle').replace(/\.[^.]+$/, '');
@@ -1863,11 +1873,16 @@ function App() {
       <div className="step">
         <h2>04 — 검수 · 수정</h2>
         {mode === 'review' && (
-          <div className="row" style={{marginBottom:10}}>
-            <label className="f" style={{flex:'1 1 320px', maxWidth:430}}>
-              <span className="cap">Anthropic API 키 <em>맞춤법 검사에만 씀 · 이 브라우저에만 저장</em></span>
-              <input type="password" placeholder="sk-ant-…  비워 두면 맞춤법 검사만 못 씁니다"
-                value={key} onChange={e=>setKey(e.target.value)} /></label>
+          <div className="row" style={{marginBottom:10, alignItems:'center'}}>
+            <span style={{fontSize:12, color:'var(--dim2)', whiteSpace:'nowrap'}}>Anthropic API 키</span>
+            <input type="password" style={{flex:'1 1 240px', maxWidth:340}}
+              placeholder="sk-ant-…  맞춤법 검사에만 씁니다"
+              value={key} onChange={e => setKey(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveKey(); }} />
+            <button disabled={!key} onClick={saveKey} title="이 브라우저에만 저장합니다 (Enter)">저장</button>
+            {keySaved && <button className="sm" onClick={clearKey}>지움</button>}
+            <span className={keySaved ? 'pill ok' : 'pill'}>
+              {keySaved ? '이 브라우저에 저장됨' : '저장 안 됨'}</span>
             {prog && <span className="pill">{prog.done} / {prog.total}</span>}
           </div>
         )}
@@ -1976,7 +1991,7 @@ function App() {
           <span style={{flex:1}} />
           <input placeholder="찾기" value={find} onChange={e => setFind(e.target.value)} style={{maxWidth:150}} />
           <input placeholder="바꾸기" value={repl} onChange={e => setRepl(e.target.value)} style={{maxWidth:150}} />
-          <span className="pill">{find ? `${view.length}큐` : '—'}</span>
+          {find && <span className="pill">{view.length}큐</span>}
           <button disabled={!find || !view.length} onClick={replaceAll}
             title="지금 화면에 보이는 큐에만 적용합니다">모두 바꾸기</button>
           <button disabled={!past.current.length} onClick={undo} title="⌘Z">되돌리기</button>
@@ -2009,7 +2024,7 @@ function App() {
               {onBy.size > 0 && <button className="sm" onClick={() => setOnBy(new Set())}>해제</button>}
             </>
           ) : (
-            <span className="msg">전체 {cues.length}큐 · 의심 {susCount}건 · 수정됨 {editCount}건</span>
+            <span className="msg">갈래로 걸러 보려면 <b>의심</b>을, 무엇이 바뀌었는지 보려면 <b>수정됨</b>을 누르세요.</span>
           )}
         </div>
         {showRules && (
@@ -2043,19 +2058,19 @@ function App() {
           <table>
             <colgroup>
               <col style={{width:52}} /><col style={{width:98}} />
-              <col style={{width: refCols.length ? '22%' : '32%'}} />
+              {showEn && <col style={{width: refCols.length ? '22%' : '30%'}} />}
               {refCols.map(l => <col key={l} style={{width:`${Math.max(14, 30 - refCols.length*6)}%`}} />)}
-              <col /><col style={{width:200}} /><col style={{width:104}} />
+              <col /><col style={{width:210}} /><col style={{width:126}} />
             </colgroup>
             <thead><tr>
-              <th className="num">#</th><th>타임코드</th><th>원문</th>
+              <th className="num">#</th><th>타임코드</th>{showEn && <th>{mode === 'review' ? '불러온 자막' : '원문'}</th>}
               {refCols.map(l => <th key={l}>{l}</th>)}
               <th>한글 · 제안</th><th>사유</th><th></th>
             </tr></thead>
             <tbody>
               {view.map(([c, i]) => (
                 <MemoRow key={i} c={c} i={i} lim={lim} busy={busy} refCols={refCols}
-                  showWas={filter === 'edit'}
+                  showWas={filter === 'edit'} showEn={showEn}
                   onRevert={() => revertCue(i)}
                   onChange={(v) => setKo(i, v)}
                   onTrack={() => setCues(p => p.map((x, k) =>
