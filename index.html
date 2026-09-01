@@ -17,7 +17,7 @@
     --sky:#38bdf8; --sky2:#7dd3fc; --cyan:#22d3ee; --onsky:#06121c;
     --warn:#fbbf24; --err:#fca5a5; --ok:#6ee7b7; --pure:#fff; --lyric:#a78bfa;
     --sub:#312e81; --subEdge:#4f46e5; --subInk:#c7d2fe; --skyInk:#e0f2fe;
-    --tint:255,255,255;
+    --tint:255,255,255; --mono:ui-monospace,Menlo,monospace;
   }
   @media (prefers-color-scheme: light){
     :root:not([data-theme="dark"]){
@@ -136,6 +136,69 @@
   .ko { color:var(--ink); font-size:13px; line-height:1.55; white-space:pre-wrap; }
   .ko textarea { width:100%; font-size:13px; }
   .why { font-size:10.5px; color:var(--warn); margin-top:3px; }
+  /* 사유 컬럼 */
+  td.whycol { width:200px; }
+  .tag { display:flex; gap:6px; font-size:11px; line-height:1.45; margin-bottom:4px; color:var(--k,var(--dim)); }
+  .tag:last-child { margin-bottom:0; }
+  .tag .dot { width:6px; height:6px; border-radius:99px; background:var(--k,var(--dim3)); flex:none; margin-top:5px; }
+  .tag em { font-style:normal; color:var(--dim2); }
+  .t-time{--k:#38bdf8} .t-len{--k:#a78bfa} .t-spell{--k:#6ee7b7} .t-space{--k:#fbbf24}
+  .t-line{--k:#f472b6} .t-mark{--k:#22d3ee} .t-tr{--k:#fb923c}
+  /* 전후 비교 */
+  .was2 { font-size:11px; color:var(--dim2); margin-top:5px; padding-top:5px;
+    border-top:1px dashed var(--edge); line-height:1.5; white-space:pre-wrap; }
+  .was2 .tagn { font-family:var(--mono); font-size:9.5px; letter-spacing:.07em; color:var(--dim3);
+    border:1px solid var(--edge); border-radius:4px; padding:0 4px; margin-right:5px; }
+  .tc s { text-decoration:none; color:var(--warn); display:block; font-size:10.5px; opacity:.85; }
+  /* 상태 세그먼트 */
+  .seg { display:inline-flex; background:rgba(255,255,255,.05); padding:3px; border-radius:10px; gap:2px; flex:none; }
+  .seg button { border:0; background:transparent; padding:6px 13px; border-radius:8px; color:var(--dim2);
+    font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; display:inline-flex; gap:7px; align-items:center; }
+  .seg button b { font-family:var(--mono); font-size:11px; font-weight:700; color:var(--dim3); }
+  .seg button:hover { color:var(--ink); }
+  .seg button.on { background:var(--panel); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.35); }
+  .seg button.on b { color:var(--sky); }
+  /* 하위 필터 */
+  .subf { display:flex; flex-wrap:wrap; gap:6px; align-items:center; min-height:40px;
+    padding:9px 0 10px; border-bottom:1px solid var(--edge); margin-bottom:10px; }
+  .subf .lb { font-family:var(--mono); font-size:10px; letter-spacing:.11em; color:var(--dim3); margin-right:3px; }
+  .subf .msg { font-size:12px; color:var(--dim2); }
+  .chip { font-family:inherit; font-size:12px; cursor:pointer; background:transparent;
+    border:1px solid var(--edge); border-radius:99px; padding:4px 11px; color:var(--dim);
+    display:inline-flex; align-items:center; gap:7px; }
+  .chip .dot { width:7px; height:7px; border-radius:99px; background:var(--k,var(--dim3)); flex:none; }
+  .chip b { font-family:var(--mono); font-size:11px; font-weight:700; }
+  .chip.on { background:rgba(255,255,255,.07); color:var(--k,var(--sky)); border-color:currentColor; }
+  .chip.z { opacity:.4; }
+  /* 단계 레일 */
+  .rail { display:flex; width:100%; overflow-x:auto; margin:2px 0 12px; }
+  .rail .st { flex:1 1 0; min-width:112px; padding:9px 6px 11px; text-align:center; background:transparent;
+    border:0; border-bottom:2px solid var(--edge); font-family:inherit; font-size:13px; font-weight:700;
+    color:var(--dim2); cursor:pointer; transition:color .15s, border-color .15s; }
+  .rail .st u { display:block; text-decoration:none; font-family:var(--mono); font-size:10px;
+    letter-spacing:.14em; color:var(--dim3); margin-bottom:2px; }
+  .rail .st em { display:block; font-style:normal; font-weight:400; font-size:11px; color:var(--dim3); margin-top:3px; }
+  .rail .st:hover { color:var(--dim); }
+  .rail .st.sel { color:var(--ink); border-bottom-color:var(--sky); }
+  .rail .st.sel u { color:var(--sky); }
+  .rail .st.done { border-bottom-color:var(--ok); }
+  .rail .st.done u, .rail .st.done em { color:var(--ok); }
+  .detail { border:1px solid var(--edge); border-radius:11px; background:var(--panel2);
+    padding:13px 14px; margin-bottom:12px; }
+  .detail .dh { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; margin-bottom:6px; }
+  .detail .dh h3 { font-size:14px; font-weight:700; margin:0; }
+  .detail .dh .k { font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--dim3); }
+  .detail .dd { font-size:12.5px; color:var(--dim); margin:0 0 8px; line-height:1.65; }
+  .detail .cau { font-size:12px; color:var(--warn); margin:0 0 8px; }
+  .chg { margin:0; padding:0; list-style:none; font-size:12.5px; max-height:260px; overflow-y:auto; }
+  .chg li { padding:7px 0; border-bottom:1px solid rgba(255,255,255,.055);
+    display:flex; gap:10px; align-items:flex-start; }
+  .chg li:last-child { border-bottom:0; }
+  .chg .cn { font-family:var(--mono); font-size:11px; color:var(--dim3); min-width:40px; flex:none; padding-top:2px; }
+  .chg .cb { flex:1; min-width:0; line-height:1.55; }
+  .chg .wasx { color:var(--dim2); }
+  .sv { font-size:11.5px; color:var(--ok); white-space:nowrap; }
+  .sv.warnc { color:var(--warn); }
   .sug { display:block; width:100%; text-align:left; margin-top:4px; padding:5px 8px; font-size:12px;
          white-space:pre-wrap; line-height:1.45; background:rgba(56,189,248,.07); border-color:rgba(56,189,248,.3); }
   .bar { height:6px; background:rgba(var(--tint),.08); border-radius:99px; overflow:hidden; }
@@ -624,6 +687,37 @@ function notation(ko, en) {
 
 /* 화면 정보 후보 — 대사와 겹치면 서브 파일로 뺄 대상.
    전체가 기울임인데 원문에는 <i> 가 없던 큐다. 원문이 기울임이면 화면 밖 목소리라 대사다. */
+/* 경고를 갈래로 나눈다 — 사유 컬럼과 필터에서 쓴다 */
+const CATS = { time:'타이밍', len:'길이·줄', spell:'맞춤법', space:'띄어쓰기',
+               line:'줄 나누기', mark:'표기', tr:'번역' };
+const WCAT = [
+  ['time',  /^노출 |^초당 /],
+  ['len',   /자 \(기준 |^3줄 이상/],
+  ['line',  /분리$/],
+  ['space', /띈다|공백 누락/],
+  ['spell', /→/],
+  ['tr',    /— 이름으로/],
+];
+const catOf = (w) => (WCAT.find(([, re]) => re.test(w)) || ['mark'])[0];
+const ruleKey = (w) => w.replace(/\s*\(.*\)$/, '').replace(/^'.*?'\s*/, '').replace(/^\d+자.*/, '글자수 초과');
+const WHINT = [
+  [/^초당/,                '읽기 속도 초과'],
+  [/^노출.*최소/,          '너무 짧습니다'],
+  [/^노출.*최대/,          '너무 깁니다'],
+  [/자 \(기준/,            '한 줄 길이 초과'],
+  [/^3줄 이상/,            '두 줄까지만'],
+  [/부사\+용언 분리/,      '뒷말과 붙여 주세요'],
+  [/관형어.*체언 분리/,     '꾸미는 말과 붙여 주세요'],
+  [/의존명사.*분리/,        '앞말과 붙여 주세요'],
+  [/보조용언 분리/,         '앞말과 붙여 주세요'],
+  [/— 이름으로/,            '3인칭 대명사'],
+  [/인용 후보/,             '인용문이면 곧은 작은따옴표'],
+  [/화면 텍스트 후보/,      '기울임 확인'],
+  [/마침표/,                '쓰지 않습니다'],
+  [/따옴표/,                '곧은 부호로'],
+];
+const hintOf = (w) => (WHINT.find(([re]) => re.test(w)) || [0, ''])[1];
+
 function isScreenInfo(ko, en) {
   const t = (ko || '').trim();
   if (!t) return false;
@@ -954,13 +1048,34 @@ const unmark = (s) => String(s).replace(/\s*⏎\s*/g, '\n').replace(/[ \t]+\n/g,
 /* ══════════════════════════════════════════════════════════
    7. UI
    ══════════════════════════════════════════════════════════ */
-function Row({ c, i, lim, onChange, onSuggest, onTrack, busy, refCols }) {
+const BYNAME = { fmt:'표기 정리', spot:'타이밍 정리', spell:'맞춤법', scr:'화면 정보', man:'직접 수정', song:'♪ 제거' };
+/* 마무리 작업 — 글자 → 타이밍 → 트랙 → 확인 → 내보내기 순 */
+const STEP_DEFS = [
+  { id:'fmt', n:'표기 일괄 정리', k:'BATCH FORMAT', sub:'줄바꿈·부호 정돈',
+    d:'한 줄 기준을 넘으면 어절 경계에서 다시 나누고, 줄 끝에 남은 쉼표와 짝 없는 대사 대시를 지웁니다. 번역문은 건드리지 않습니다.' },
+  { id:'spell', n:'맞춤법 검사', k:'SPELLCHECK', sub:'Claude 제안 붙임',
+    d:'맞춤법·띄어쓰기·오타만 검사합니다. 문장을 고치지 않고 제안으로 붙여 큐마다 따로 받아들일 수 있습니다. API 키가 필요합니다.' },
+  { id:'spot', n:'자막 타이밍 정리', k:'RESPOT', sub:'노출 시간 조정',
+    d:'끊긴 큐를 잇고, 다음 큐가 시작할 때까지 아웃점을 늘립니다(최대 1초). 번역문은 그대로 두고 문장이 이어지는 곳만 이어 붙입니다.',
+    cau:'인점·아웃점이 다시 계산됩니다. 영상에 맞춰 손으로 잡아 둔 타이밍이 있으면 덮어씁니다.' },
+  { id:'scr', n:'화면 정보 표시', k:'DETECT SUB', sub:'서브 자막 분리',
+    d:'전체가 기울임이거나 제목 꼴인 큐를 골라 서브 자막으로 옮깁니다. 서브는 별도 파일로 나가고 번인 때 대사보다 한 줄 위에 놓입니다.',
+    cau:'넉넉하게 잡으므로 대사와 실제로 겹치는 것만 남기고 나머지는 되돌려 주세요.' },
+  { id:'rule', n:'표기 검수', k:'RULE AUDIT', sub:'규칙별 건수 확인', read:true,
+    d:'고쳐 주지 않습니다. 보기만 바꿉니다. 표기 규칙별로 몇 건이 걸렸는지 모아 보는 패널을 폈다 접습니다.' },
+  { id:'dl', n:'한글 SRT 내려받기', k:'EXPORT', sub:'납품 파일 저장', fin:true,
+    d:'본편과 서브를 각각 SRT로 저장합니다. 앞 단계가 모두 끝난 뒤 마지막에 누릅니다.' },
+];
+function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols, showWas }) {
   const [editing, setEditing] = useState(false);
   const warns = inspect(c.ko || '', lim, c.kind, c.en || '', c.out - c.in);
   return (
     <tr className={warns.length ? 'sus' : ''} style={c.edited ? { outline:'1px solid rgba(56,189,248,.25)', outlineOffset:'-1px' } : undefined}>
       <td className="idx">{i+1}{c.kind==='lyric' && <div style={{color:'var(--lyric)',fontSize:12}}>♪</div>}</td>
-      <td className="tc">{s2t(c.in)}<br/>{s2t(c.out)}</td>
+      <td className="tc">
+        {c.tin0 !== undefined && <><s>{s2t(c.tin0)}</s><s>{s2t(c.tout0)}</s></>}
+        {s2t(c.in)}<br/>{s2t(c.out)}
+      </td>
       <td className="en">{c.en}</td>
       {refCols.map(lab => {
         const t = (c.refs || {})[lab] || '';
@@ -982,7 +1097,12 @@ function Row({ c, i, lim, onChange, onSuggest, onTrack, busy, refCols }) {
         ) : (
           <div onClick={() => setEditing(true)} style={{cursor:'text', minHeight:20}}>{c.ko || <span style={{color:'var(--dim3)'}}>—</span>}</div>
         )}
-        {warns.length > 0 && <div className="why">⚠ {warns.join(' · ')}</div>}
+        {showWas && c.was0 !== undefined && c.was0 !== (c.ko||'') && (
+          <div className="was2"><span className="tagn">{BYNAME[c.by] || '직접 수정'}</span>{c.was0 || '(비어 있었음)'}</div>
+        )}
+        {showWas && (c.was0 !== undefined || c.tin0 !== undefined) && (
+          <button className="sug" onClick={onRevert}>원래대로</button>
+        )}
         {c.spell && (
           <button className="sug" style={{borderColor:'rgba(52,211,153,.5)'}}
             title="맞춤법 검사 제안 — 눌러서 적용"
@@ -991,6 +1111,14 @@ function Row({ c, i, lim, onChange, onSuggest, onTrack, busy, refCols }) {
         )}
         {c.sugg && c.sugg.map((s, k) => (
           <button key={k} className="sug" onClick={() => onChange(s)}>{k+1}안 · {s}</button>
+        ))}
+      </td>
+      <td className="whycol">
+        {warns.map((w, k) => (
+          <div key={k} className={'tag t-' + catOf(w)}>
+            <span className="dot" />
+            <span>{w}{hintOf(w) && <><br /><em>{hintOf(w)}</em></>}</span>
+          </div>
         ))}
       </td>
       <td>
@@ -1052,6 +1180,14 @@ function App() {
   const [srcLang, setSrcLang] = useState('en'); // 원문 언어 (자동 감지 후 수동 변경 가능)
   const [files, setFiles] = useState([]);       // 불러온 자막 [{name, cues, lang, role}]
   const [base, setBase] = useState(null);       // 검수할 기존 번역본 {label, cues}
+  const [find, setFind]   = useState('');       // 찾기
+  const [repl, setRepl]   = useState('');       // 바꾸기
+  const [onCat, setOnCat] = useState(new Set());  // 사유 갈래 필터
+  const [onBy, setOnBy]   = useState(new Set());  // 무엇이 바꿨나 필터
+  const [step, setStep]   = useState(null);     // 펼친 단계
+  const [tick, setTick]   = useState(0);        // 되돌리기 버튼 갱신
+  const [saved, setSaved] = useState('');       // 저장 상태
+  const past = useRef([]), future = useRef([]);
 
   // 여러 파일을 한 번에 읽고 언어를 감지해 역할을 미리 정해 둔다
   const readAll = async (list) => {
@@ -1209,8 +1345,61 @@ function App() {
     setBusy(false);
   };
 
+  /* 여러 큐를 한 번에 바꾸는 동작은 모두 되돌릴 수 있게 기록한다 (최대 50단계) */
+  const HIST = 50;
+  const apply = useCallback((fn) => {
+    setCues(prev => {
+      const next = fn(prev);
+      if (next === prev) return prev;
+      past.current.push(prev);
+      if (past.current.length > HIST) past.current.shift();
+      future.current = [];
+      return next;
+    });
+    setTick(t => t + 1);
+  }, []);
+  const undo = useCallback(() => {
+    if (!past.current.length) return;
+    setCues(prev => { future.current.push(prev); return past.current.pop(); });
+    setTick(t => t + 1);
+  }, []);
+  const redo = useCallback(() => {
+    if (!future.current.length) return;
+    setCues(prev => { past.current.push(prev); return future.current.pop(); });
+    setTick(t => t + 1);
+  }, []);
+  useEffect(() => {
+    const h = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
+      if (/input|textarea/i.test(e.target.tagName)) return;
+      e.preventDefault(); e.shiftKey ? redo() : undo();
+    };
+    addEventListener('keydown', h); return () => removeEventListener('keydown', h);
+  }, [undo, redo]);
+
+  /* 무엇이 언제 바뀌었는지 남긴다 — 수정됨에서 전후를 보여주기 위해 */
+  const mark = (c, patch, by) => ({
+    ...c, ...patch,
+    was0: (patch.ko !== undefined && c.was0 === undefined) ? (c.ko || '') : c.was0,
+    by, edited: true,
+  });
+  const undoOne = (c, by) => {
+    const n = { ...c };
+    if (n.was0 !== undefined) { n.ko = n.was0; delete n.was0; }
+    if (n.tin0 !== undefined) { n.in = n.tin0; n.out = n.tout0; delete n.tin0; delete n.tout0; }
+    if ((by || n.by) === 'scr') n.track = 'main';
+    delete n.by; n.edited = false;
+    return n;
+  };
+  const revertCue = useCallback((idx) =>
+    apply(prev => prev.map((c, k) => k === idx ? undoOne(c) : c)), [apply]);
+  const revertBy = useCallback((by) =>
+    apply(prev => prev.map(c => c.by === by ? undoOne(c, by) : c)), [apply]);
+
   const setKo = useCallback((idx, v) => {
-    setCues(prev => prev.map((c, i) => i === idx ? { ...c, ko: v, sugg: null, edited: true } : c));
+    setCues(prev => prev.map((c, i) => i === idx
+      ? { ...c, ko: v, sugg: null, edited: true, by: 'man',
+          was0: c.was0 === undefined ? (c.ko || '') : c.was0 } : c));
   }, []);
 
   /* 맞춤법 검사 — 고칠 것만 돌려받아 큐에 붙인다. 바로 반영하지 않고 제안으로 둔다. */
@@ -1272,15 +1461,48 @@ function App() {
   }, [cues, key, model, effort, gloss, tone, lim, notes, keepNote]);
 
   const view = useMemo(() => {
-    if (filter === 'sus')   return cues.map((c,i)=>[c,i]).filter(([c]) => {
+    let out = cues.map((c,i)=>[c,i]);
+    if (filter === 'sus') out = out.filter(([c]) => {
       const ws = inspect(c.ko||'', lim, c.kind, c.en||'', c.out - c.in);
       if (!ws.length) return false;
-      if (!ruleQ) return true;
-      return ws.some(x => x.replace(/\s*\(.*\)$/, '').replace(/^'.*?'\s*/, '').replace(/^\d+자.*/, '글자수 초과') === ruleQ);
+      if (ruleQ && !ws.some(x => ruleKey(x) === ruleQ)) return false;
+      if (onCat.size && !ws.some(x => onCat.has(catOf(x)))) return false;
+      return true;
     });
-    if (filter === 'edit')  return cues.map((c,i)=>[c,i]).filter(([c]) => c.edited);
-    return cues.map((c,i)=>[c,i]);
-  }, [cues, filter, lim, ruleQ]);
+    else if (filter === 'edit') out = out.filter(([c]) =>
+      c.edited && (!onBy.size || onBy.has(c.by || 'man')));
+    if (find) out = out.filter(([c]) => (c.ko||'').includes(find));
+    return out;
+  }, [cues, filter, lim, ruleQ, onCat, onBy, find]);
+
+  /* 갈래별 건수 — 의심 하위 필터의 숫자 */
+  const catCount = useMemo(() => {
+    const m = {};
+    for (const c of cues)
+      for (const w of inspect(c.ko||'', lim, c.kind, c.en||'', c.out - c.in)) {
+        const k = catOf(w); m[k] = (m[k]||0) + 1;
+      }
+    return m;
+  }, [cues, lim]);
+
+  /* 무엇이 바꿨는지별 건수 */
+  const byCount = useMemo(() => {
+    const m = {};
+    for (const c of cues) if (c.edited) { const k = c.by || 'man'; m[k] = (m[k]||0) + 1; }
+    return m;
+  }, [cues]);
+
+  const editCount = useMemo(() => cues.filter(c => c.edited).length, [cues]);
+
+  /* 찾기 · 바꾸기 — 지금 화면에 보이는 큐에만 적용한다 */
+  const replaceAll = () => {
+    if (!find) return;
+    const ids = new Set(view.map(([, i]) => i));
+    apply(prev => prev.map((c, i) => (ids.has(i) && (c.ko||'').includes(find))
+      ? mark(c, { ko: c.ko.split(find).join(repl) }, 'man') : c));
+    setSaved(`«${find}» → «${repl}» · ${ids.size}큐`);
+    setFind('');   // 바꾼 큐가 필터에서 빠져 표가 비어 보이는 것을 막는다
+  };
 
   const refCols = useMemo(() => refs.map(r => r.label), [refs]);
 
@@ -1306,13 +1528,75 @@ function App() {
     const m = {}; let total = 0;
     for (const c of cues)
       for (const wname of inspect(c.ko||'', lim, c.kind, c.en||'', c.out - c.in)) {
-        const key = wname.replace(/\s*\(.*\)$/, '').replace(/^'.*?'\s*/, '').replace(/^\d+자.*/, '글자수 초과');
+        const key = ruleKey(wname);
         m[key] = (m[key]||0) + 1; total++;
       }
     return { total, rows: Object.entries(m).sort((a,b) => b[1]-a[1]) };
   }, [cues, lim]);
 
   const subCount = useMemo(() => cues.filter(c => c.track === 'sub').length, [cues]);
+
+  /* 마무리 작업 — 업무 순서대로 */
+  const runStep = (id) => {
+    if (id === 'fmt') apply(prev => prev.map(c => {
+      const ko = finalize(c.ko||'', { keepNote, lim, kind: c.kind });
+      return ko === (c.ko||'') ? c : mark(c, { ko }, 'fmt');
+    }));
+    else if (id === 'spell') spellcheck();
+    else if (id === 'spot') apply(prev => {
+      const seeded = prev.map(c => c.tin0 === undefined ? { ...c, tin0: c.in, tout0: c.out } : c);
+      return respot(seeded, lim).map(c => {
+        if (c.in === c.tin0 && c.out === c.tout0) {
+          const { tin0, tout0, ...rest } = c;
+          return rest.by === 'spot' ? { ...rest, by: undefined, edited: false } : rest;
+        }
+        return { ...c, by: 'spot', edited: true };
+      });
+    });
+    else if (id === 'scr') apply(prev => prev.map(c =>
+      (c.track !== 'sub' && isScreenInfo(c.ko||'', c.en||'')) ? mark(c, { track: 'sub' }, 'scr') : c));
+    else if (id === 'rule') setShowRules(v => !v);
+    else if (id === 'dl') download();
+  };
+  const stepTargets = (id) => {
+    if (id === 'fmt')  return cues.filter(c => finalize(c.ko||'', { keepNote, lim, kind: c.kind }) !== (c.ko||'')).length;
+    if (id === 'spell') return cues.filter(c => c.spell).length;
+    if (id === 'scr')  return cues.filter(c => c.track !== 'sub' && isScreenInfo(c.ko||'', c.en||'')).length;
+    return 0;
+  };
+
+  /* 저장 — 자동(브라우저) + 작업 파일(.sublab.json) */
+  const workName = () => (meta.split(' —')[0] || 'subtitle').replace(/\.[^.]+$/, '');
+  useEffect(() => {
+    if (!cues.length) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem('sublab-work', JSON.stringify({ v:1, meta, mode, lim, cues }));
+        setSaved('자동 저장됨');
+      } catch (e) { setSaved('자동 저장 실패 — 용량 초과'); }
+    }, 900);
+    return () => clearTimeout(t);
+  }, [cues, meta, mode, lim]);
+  const saveWork = () => {
+    const name = workName() + '.sublab.json';
+    const blob = new Blob([JSON.stringify({ v:1, meta, mode, lim, cues })], { type:'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
+    setSaved(name + ' 저장됨');
+  };
+  const openWork = (file) => {
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = JSON.parse(r.result);
+        if (!Array.isArray(d.cues)) throw new Error('cues 없음');
+        setCues(d.cues); if (d.meta) setMeta(d.meta); if (d.lim) setLim(d.lim);
+        past.current = []; future.current = []; setTick(t => t + 1);
+        setSaved(file.name + ' 에서 불러옴'); setErr('');
+      } catch (e) { setErr('작업 파일을 읽지 못했습니다 — ' + e.message); }
+    };
+    r.readAsText(file);
+  };
 
   const download = () => {
     const base = (meta.split(' —')[0] || 'subtitle').replace(/\.[^.]+$/, '');
@@ -1589,9 +1873,6 @@ function App() {
         )}
         {mode === 'review' && err && <div className="err" style={{marginBottom:10}}>{err}</div>}
         <div className="row" style={{marginBottom:10}}>
-          <button className={filter==='all'?'primary':''} onClick={()=>setFilter('all')}>전체 {cues.length}</button>
-          <button className={filter==='sus'?'primary':''} onClick={()=>setFilter('sus')}>의심 {susCount}</button>
-          <button className={filter==='edit'?'primary':''} onClick={()=>setFilter('edit')}>수정됨 {cues.filter(c=>c.edited).length}</button>
           <input id="refpick" type="file" accept=".srt,.stl,.txt" hidden multiple
             onChange={e => { [...e.target.files].forEach(readRef); e.target.value=''; }} />
           <button title="중문 원본이나 업체 납품 자막을 불러와 나란히 비교합니다 (여러 개 가능)"
@@ -1603,41 +1884,133 @@ function App() {
                   setCues(p => p.map(c => { const q={...(c.refs||{})}; delete q[r.label]; return {...c, refs:q}; })); }}>×</button>
             </span>
           ))}
-          <span style={{flex:1}} />
-          <button title="⏎ 정리 · 자동 줄바꿈 · 줄 끝 쉼표/고아 대시 제거를 지금 결과 전체에 다시 적용합니다"
-            onClick={() => setCues(prev => prev.map(c => {
-              const ko = finalize(c.ko||'', { keepNote, lim, kind: c.kind });
-              return ko === (c.ko||'') ? c : { ...c, ko, edited: true };
-            }))}>표기 일괄 정리</button>
-          <button disabled={busy || !cues.some(c => (c.ko||'').trim())}
-            title="Claude 로 맞춤법·띄어쓰기·오타만 검사합니다. 문장은 고치지 않고 제안으로 붙습니다"
-            onClick={spellcheck}>{busy ? '검사 중…' : '맞춤법 검사'}</button>
-          {cues.some(c => c.spell) &&
-            <button title="맞춤법 제안을 모두 적용합니다"
-              onClick={() => setCues(prev => prev.map(c =>
-                c.spell ? { ...c, ko: c.spell.ko, spell: null, edited: true } : c))}>
-              맞춤법 {cues.filter(c => c.spell).length}건 적용</button>}
-          <button title="인접한 짧은 큐를 묶고, 다음 큐가 시작할 때까지 표시시간을 늘립니다 (업체 납품 기준). 타이밍만 바뀌고 번역은 그대로입니다"
-            onClick={() => setCues(prev => {
-              const before = prev.map(c => `${c.in}|${c.out}|${c.ko||''}`);
-              return respot(prev, lim).map((c, i) =>
-                before[i] === `${c.in}|${c.out}|${c.ko||''}` ? c : { ...c, edited: true });
-            })}>스포팅 적용</button>
-          {cues.some(c => (c.ko||'').includes('♪')) &&
-            <button onClick={() => setCues(prev => prev.map(c => {
-              const ko = stripNote(c.ko||'', false);
-              return ko === (c.ko||'') ? c : { ...c, ko, edited: true };
-            }))}>♪ 모두 제거</button>}
-          <span className={susCount ? 'pill warn' : 'pill ok'}>{susCount ? `검토 필요 ${susCount}건` : '규칙 위반 없음'}</span>
           <span className="pill">{subCount ? `서브 ${subCount}건` : '전부 본편'}</span>
-          <button title="전체가 기울임이거나 제목인 큐를 서브 후보로 표시합니다. 대사와 겹치는 것만 남기고 되돌려 주세요."
-            onClick={() => setCues(p => p.map(c =>
-              isScreenInfo(c.ko||'', c.en||'') ? { ...c, track:'sub' } : c))}>화면 정보 표시</button>
-          {subCount > 0 &&
-            <button onClick={() => setCues(p => p.map(c => c.track === 'sub' ? { ...c, track:'main' } : c))}>서브 해제</button>}
-          <button title="표기 규칙별로 몇 건이 걸렸는지 모아 봅니다"
-            onClick={() => setShowRules(v => !v)}>{showRules ? '표기 검수 닫기' : '표기 검수'}</button>
-          <button className="primary" onClick={download}>한글 SRT 내려받기</button>
+          <span style={{flex:1}} />
+          {saved && <span className={'sv' + (saved.includes('실패') ? ' warnc' : '')}>{saved}</span>}
+          <input id="workpick" type="file" accept=".json,.sublab.json" hidden
+            onChange={e => { const f = e.target.files[0]; if (f) openWork(f); e.target.value=''; }} />
+          <button title="현재 큐와 무엇이 바뀌었는지를 파일 하나로 저장합니다. API 키는 넣지 않습니다"
+            onClick={saveWork}>작업 파일 저장</button>
+          <button onClick={() => document.getElementById('workpick').click()}>열기</button>
+        </div>
+
+        <div className="rail">
+          {STEP_DEFS.map((st, k) => {
+            const n = (st.read || st.fin) ? 0 : (byCount[st.id] || 0);
+            return (
+              <button key={st.id} type="button"
+                className={'st' + (step === st.id ? ' sel' : '') + (n ? ' done' : '')}
+                onClick={() => setStep(step === st.id ? null : st.id)}>
+                <u>{n ? '✓' : String(k + 1).padStart(2, '0')}</u>{st.n}
+                <em>{n ? n + '큐 적용됨' : st.sub}</em>
+              </button>
+            );
+          })}
+        </div>
+
+        {step && (() => {
+          const st = STEP_DEFS.find(x => x.id === step);
+          if (!st) return null;
+          const done = byCount[st.id] || 0, tg = stepTargets(st.id);
+          const rows = cues.map((c, i) => [c, i]).filter(([c]) => c.by === st.id);
+          return (
+            <div className="detail">
+              <div className="dh">
+                <span className="k">{st.k}</span><h3>{st.n}</h3>
+                <span style={{flex:1}} />
+                {st.read && <span style={{fontSize:11.5, color:'var(--dim2)'}}>읽기 전용 — 자막을 바꾸지 않습니다</span>}
+                {st.id === 'spell' && cues.some(c => c.spell) &&
+                  <button title="맞춤법 제안을 모두 적용합니다"
+                    onClick={() => apply(prev => prev.map(c =>
+                      c.spell ? mark(c, { ko: c.spell.ko, spell: null }, 'spell') : c))}>
+                    제안 {cues.filter(c => c.spell).length}건 적용</button>}
+                {st.id === 'scr' && subCount > 0 &&
+                  <button onClick={() => apply(prev => prev.map(c =>
+                    c.track === 'sub' ? undoOne({ ...c, by: 'scr' }, 'scr') : c))}>서브 전체 해제</button>}
+                {st.id === 'fmt' && cues.some(c => (c.ko||'').includes('♪')) &&
+                  <button onClick={() => apply(prev => prev.map(c => {
+                    const ko = stripNote(c.ko||'', false);
+                    return ko === (c.ko||'') ? c : mark(c, { ko }, 'song');
+                  }))}>♪ 모두 제거</button>}
+                {!st.read && done > 0 &&
+                  <button onClick={() => revertBy(st.id)}>이 작업 전부 취소</button>}
+                <button className={st.fin ? 'primary' : ''}
+                  disabled={st.id === 'spell' && busy}
+                  onClick={() => runStep(st.id)}>
+                  {st.id === 'rule' ? (showRules ? '패널 닫기' : '패널 열기')
+                    : st.id === 'dl' ? '내려받기'
+                    : st.id === 'spell' ? (busy ? '검사 중…' : '검사 실행')
+                    : tg ? `실행 · ${tg}큐` : '대상 없음'}
+                </button>
+              </div>
+              <p className="dd">{st.d}</p>
+              {st.cau && <p className="cau">{st.cau}</p>}
+              {rows.length > 0 && (
+                <ul className="chg">
+                  {rows.slice(0, 200).map(([c, i]) => (
+                    <li key={i}>
+                      <span className="cn">#{i + 1}</span>
+                      <span className="cb">
+                        {st.id === 'spot'
+                          ? <><span className="wasx">{s2t(c.tin0)} → {s2t(c.tout0)}</span>{'  ⇒  '}{s2t(c.in)} → {s2t(c.out)}</>
+                          : <><div className="wasx">{c.was0 || '(비어 있었음)'}</div><div>{c.ko || '(비움)'}</div></>}
+                      </span>
+                      <button className="sm" onClick={() => revertCue(i)}>취소</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {rows.length > 200 &&
+                <p className="dd" style={{marginTop:8}}>… 200건까지만 보여줍니다 (전체 {rows.length}건)</p>}
+            </div>
+          );
+        })()}
+
+        <div className="row" style={{marginBottom:0}}>
+          <span className="seg">
+            {[['all','전체',cues.length],['sus','의심',susCount],['edit','수정됨',editCount]].map(([k, lab, n]) => (
+              <button key={k} type="button" className={filter === k ? 'on' : ''}
+                onClick={() => setFilter(k)}>{lab}<b>{n}</b></button>
+            ))}
+          </span>
+          <span style={{flex:1}} />
+          <input placeholder="찾기" value={find} onChange={e => setFind(e.target.value)} style={{maxWidth:150}} />
+          <input placeholder="바꾸기" value={repl} onChange={e => setRepl(e.target.value)} style={{maxWidth:150}} />
+          <span className="pill">{find ? `${view.length}큐` : '—'}</span>
+          <button disabled={!find || !view.length} onClick={replaceAll}
+            title="지금 화면에 보이는 큐에만 적용합니다">모두 바꾸기</button>
+          <button disabled={!past.current.length} onClick={undo} title="⌘Z">되돌리기</button>
+          <button disabled={!future.current.length} onClick={redo} title="⇧⌘Z">다시 실행</button>
+        </div>
+
+        <div className="subf">
+          {filter === 'sus' ? (
+            <>
+              <span className="lb">사유</span>
+              {Object.entries(CATS).map(([k, lab]) => (
+                <button key={k} type="button"
+                  className={'chip t-' + k + (onCat.has(k) ? ' on' : '') + (catCount[k] ? '' : ' z')}
+                  onClick={() => setOnCat(p => { const n = new Set(p); n.has(k) ? n.delete(k) : n.add(k); return n; })}>
+                  <span className="dot" />{lab}<b>{catCount[k] || 0}</b></button>
+              ))}
+              {onCat.size > 0 && <button className="sm" onClick={() => setOnCat(new Set())}>해제</button>}
+              {ruleQ && <button className="sm" onClick={() => setRuleQ('')}>규칙 필터 «{ruleQ}» 해제</button>}
+            </>
+          ) : filter === 'edit' ? (
+            <>
+              <span className="lb">무엇이 바꿨나</span>
+              {Object.keys(byCount).length === 0
+                ? <span className="msg">아직 고친 큐가 없습니다. 위 단계를 실행하거나 한글 칸을 직접 고쳐 보세요.</span>
+                : Object.entries(BYNAME).filter(([k]) => byCount[k]).map(([k, lab]) => (
+                    <button key={k} type="button" className={'chip' + (onBy.has(k) ? ' on' : '')}
+                      onClick={() => setOnBy(p => { const n = new Set(p); n.has(k) ? n.delete(k) : n.add(k); return n; })}>
+                      <span className="dot" />{lab}<b>{byCount[k]}</b></button>
+                  ))}
+              {onBy.size > 0 && <button className="sm" onClick={() => setOnBy(new Set())}>해제</button>}
+            </>
+          ) : (
+            <span className="msg">전체 {cues.length}큐 · 의심 {susCount}건 · 수정됨 {editCount}건</span>
+          )}
         </div>
         {showRules && (
           <div className="rulebox">
@@ -1672,16 +2045,18 @@ function App() {
               <col style={{width:52}} /><col style={{width:98}} />
               <col style={{width: refCols.length ? '22%' : '32%'}} />
               {refCols.map(l => <col key={l} style={{width:`${Math.max(14, 30 - refCols.length*6)}%`}} />)}
-              <col /><col style={{width:104}} />
+              <col /><col style={{width:200}} /><col style={{width:104}} />
             </colgroup>
             <thead><tr>
               <th className="num">#</th><th>타임코드</th><th>원문</th>
               {refCols.map(l => <th key={l}>{l}</th>)}
-              <th>한글 · 제안</th><th></th>
+              <th>한글 · 제안</th><th>사유</th><th></th>
             </tr></thead>
             <tbody>
               {view.map(([c, i]) => (
                 <MemoRow key={i} c={c} i={i} lim={lim} busy={busy} refCols={refCols}
+                  showWas={filter === 'edit'}
+                  onRevert={() => revertCue(i)}
                   onChange={(v) => setKo(i, v)}
                   onTrack={() => setCues(p => p.map((x, k) =>
                     k === i ? { ...x, track: x.track === 'sub' ? 'main' : 'sub' } : x))}
