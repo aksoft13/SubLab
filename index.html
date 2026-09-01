@@ -16,6 +16,7 @@
     --ink:#e2e8f0; --ink2:#cbd5e1; --dim:#94a3b8; --dim2:#64748b; --dim3:#475569;
     --sky:#38bdf8; --sky2:#7dd3fc; --cyan:#22d3ee; --onsky:#06121c;
     --warn:#fbbf24; --err:#fca5a5; --ok:#6ee7b7; --onok:#04231a; --pure:#fff; --lyric:#a78bfa;
+    --wavec:#3d4d63; --speechbg:rgba(56,189,248,.14); --cueblk:#4a5a70;
     --sub:#312e81; --subEdge:#4f46e5; --subInk:#c7d2fe; --skyInk:#e0f2fe;
     --tint:255,255,255; --mono:ui-monospace,Menlo,monospace;
   }
@@ -25,6 +26,7 @@
       --ink:#16202c; --ink2:#33414f; --dim:#5b6b7f; --dim2:#7b8898; --dim3:#a9b4c0;
       --sky:#0284c7; --sky2:#0369a1; --cyan:#0891b2; --onsky:#ffffff;
       --warn:#a35a06; --err:#c02626; --ok:#047857; --onok:#ffffff; --pure:#0b1220; --lyric:#6d28d9;
+    --wavec:#b6c2d1; --speechbg:rgba(2,132,199,.11); --cueblk:#94a3b8;
       --sub:#e0e7ff; --subEdge:#6366f1; --subInk:#3730a3; --skyInk:#075985;
       --tint:0,0,0;
     }
@@ -34,6 +36,7 @@
     --ink:#16202c; --ink2:#33414f; --dim:#5b6b7f; --dim2:#7b8898; --dim3:#a9b4c0;
     --sky:#0284c7; --sky2:#0369a1; --cyan:#0891b2; --onsky:#ffffff;
     --warn:#a35a06; --err:#c02626; --ok:#047857; --onok:#ffffff; --pure:#0b1220; --lyric:#6d28d9;
+    --wavec:#b6c2d1; --speechbg:rgba(2,132,199,.11); --cueblk:#94a3b8;
     --sub:#e0e7ff; --subEdge:#6366f1; --subInk:#3730a3; --skyInk:#075985;
     --tint:0,0,0;
   }
@@ -45,12 +48,13 @@
   h1 { font-size:20px; margin:0 0 4px; }
   .lede { color:var(--dim); font-size:13px; margin:0 0 22px; line-height:1.6; }
   .tabs { display:flex; align-items:center; gap:13px; margin:0 0 16px; }
-  .tabbar { position:relative; display:flex; flex:0 0 auto; width:330px; padding:4px;
+  .tabbar { position:relative; display:flex; flex:0 0 auto; width:462px; padding:4px;
     background:rgba(var(--tint),.05); border-radius:11px; }
-  .tabbar .ind { position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px);
+  .tabbar .ind { position:absolute; top:4px; bottom:4px; left:4px; width:calc((100% - 8px)/3);
     border-radius:8px; background:var(--sky);
     transition:transform .22s cubic-bezier(.4,0,.2,1); }
   .tabbar.b2 .ind { transform:translateX(100%); }
+  .tabbar.b3 .ind { transform:translateX(200%); }
   .tabbar button { position:relative; z-index:1; flex:1; padding:9px 0; text-align:center;
     background:transparent; border:0; cursor:pointer; color:var(--dim);
     font-size:14.5px; font-weight:700; letter-spacing:.2px; }
@@ -213,6 +217,118 @@
   .chg .cb { flex:1; min-width:0; line-height:1.55; }
   .chg .wasx { color:var(--dim2); }
   .sv { font-size:11.5px; color:var(--ok); white-space:nowrap; }
+
+  /* ── 프리뷰 ── */
+  .pv { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:13px; align-items:stretch; }
+  @media (max-width:900px){ .pv { grid-template-columns:1fr; } .pv .side { max-height:420px; } }
+  .player { border:1px solid var(--edge); border-radius:12px; overflow:hidden; background:var(--panel2); }
+  .srcbar { display:flex; align-items:center; gap:8px; padding:7px 10px; background:var(--panel);
+    border-bottom:1px solid var(--edge); font-size:11.5px; flex-wrap:wrap; }
+  .chipf { display:inline-flex; align-items:center; gap:6px; color:var(--dim); min-width:0; }
+  .chipf b { font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; max-width:180px; }
+  .chipf .ic { width:6px; height:6px; border-radius:99px; background:var(--sky); flex:none; }
+  .anas { font-size:11px; color:var(--dim2); white-space:nowrap; }
+  .getb { height:28px; font-size:11.5px; font-weight:600; border:1px solid rgba(56,189,248,.45);
+    background:rgba(56,189,248,.09); color:var(--sky2); border-radius:8px; padding:0 11px; }
+  .getb.gh { border-color:var(--edge); background:transparent; color:var(--dim2); font-weight:500; }
+  .snd { display:inline-flex; background:rgba(var(--tint),.07); padding:2px; border-radius:8px; gap:2px; }
+  .snd button { border:0; background:transparent; font-size:11px; font-weight:600; color:var(--dim2);
+    height:24px; padding:0 9px; border-radius:6px; }
+  .snd button.on { background:var(--panel2); color:var(--ink); }
+  .screen { position:relative; background:#05080c; aspect-ratio:16/9; }
+  .screen video { display:block; width:100%; height:100%; object-fit:contain; background:#05080c; }
+  .drop { position:absolute; inset:0; display:grid; place-items:center; text-align:center; padding:18px; }
+  .drop .in { border:1.5px dashed rgba(148,163,184,.32); border-radius:12px; padding:20px 26px; max-width:430px; }
+  .drop b { display:block; color:#cbd5e1; font-size:14px; margin-bottom:5px; }
+  .drop p { margin:0; color:#7c8ba1; font-size:11.5px; line-height:1.75; }
+  .povl { position:absolute; left:6%; right:6%; bottom:7.5%; text-align:center; pointer-events:none;
+    font-size:clamp(13px,2.2vw,21px); font-weight:700; line-height:1.34; color:#fff; white-space:pre-line;
+    text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000,-1px 1px 2px #000,1px -1px 2px #000,-1px -1px 2px #000; }
+  .tcb { position:absolute; top:8px; right:9px; font-family:var(--mono); font-size:11px; color:#cbd5e1;
+    background:rgba(0,0,0,.5); border-radius:5px; padding:2px 7px; }
+  .tr { display:flex; align-items:center; gap:6px; padding:8px 10px; background:var(--panel);
+    border-top:1px solid var(--edge); flex-wrap:wrap; }
+  .pb { width:32px; height:32px; border-radius:99px; border:0; background:var(--sky); color:var(--onsky);
+    padding:0; font-size:12px; display:grid; place-items:center; flex:none; }
+  .ib { width:28px; height:28px; border-radius:8px; padding:0; font-size:15px; line-height:1;
+    display:grid; place-items:center; flex:none; }
+  .tnow { font-family:var(--mono); font-size:13px; color:var(--sky2); font-variant-numeric:tabular-nums; }
+  .jump { height:28px; font-size:11.5px; padding:0 10px; display:inline-flex; align-items:center; gap:6px; }
+  .jump i { width:6px; height:6px; border-radius:99px; background:var(--warn); display:block; }
+  .zoom { display:inline-flex; background:rgba(var(--tint),.07); padding:2px; border-radius:8px; gap:2px; }
+  .zoom button { border:0; background:transparent; font-family:var(--mono); font-size:10.5px;
+    color:var(--dim2); height:24px; padding:0 8px; border-radius:6px; }
+  .zoom button.sp2 { color:var(--sky2); font-weight:700; min-width:50px; background:var(--panel2); }
+  .tl { position:relative; padding:8px 10px 9px; background:var(--bg); border-top:1px solid var(--edge);
+    cursor:crosshair; user-select:none; }
+  .tl canvas { display:block; width:100%; height:52px; border-radius:4px; }
+  .cuest { position:relative; height:20px; margin-top:5px; border-radius:4px;
+    background:rgba(var(--tint),.05); overflow:hidden; touch-action:none; }
+  .cuest i { position:absolute; top:2px; bottom:2px; background:var(--cueblk); border-radius:3px;
+    opacity:.7; cursor:grab; min-width:2px; }
+  .cuest i.bad { background:var(--warn); opacity:.85; }
+  .cuest i.ed  { background:var(--ok); opacity:.85; }
+  .cuest i.sel { background:var(--sky); opacity:1; top:0; bottom:0;
+    box-shadow:0 0 0 1px rgba(56,189,248,.55); }
+  .cuest i.sel::before, .cuest i.sel::after { content:''; position:absolute; top:3px; bottom:3px;
+    width:3px; background:rgba(var(--tint),.85); border-radius:2px; }
+  .cuest i.sel::before { left:1px; } .cuest i.sel::after { right:1px; }
+  .head { position:absolute; top:6px; bottom:34px; width:2px; background:var(--pure); border-radius:2px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.5),0 0 7px rgba(56,189,248,.9); pointer-events:none; }
+  .eb { border-top:1px solid var(--edge); background:var(--panel); padding:11px 12px 12px; }
+  .ebh { display:flex; align-items:baseline; gap:9px; margin-bottom:8px; flex-wrap:wrap; }
+  .ebh .no { font-family:var(--mono); font-size:11px; color:var(--sky); font-weight:700;
+    background:rgba(56,189,248,.12); border-radius:5px; padding:1px 7px; }
+  .ebh .st2 { font-size:11.5px; color:var(--dim2); } .ebh .st2.bad { color:var(--err); }
+  .ebh .met { font-family:var(--mono); font-size:11px; color:var(--dim2); }
+  .ebh .met.over { color:var(--warn); }
+  .ebtxt { font-size:15px; line-height:1.5; font-weight:500; cursor:text; border-radius:7px;
+    padding:7px 9px; background:var(--panel2); border:1px solid transparent; min-height:54px; white-space:pre-wrap; }
+  .ebtxt:hover { border-color:var(--edge); }
+  .eb textarea { width:100%; font-family:inherit; font-size:15px; line-height:1.5; font-weight:500;
+    background:var(--panel2); color:var(--ink); border:1px solid var(--sky); border-radius:7px;
+    padding:7px 9px; resize:vertical; min-height:54px; }
+  .io { display:flex; gap:7px; margin-top:9px; flex-wrap:wrap; align-items:center; }
+  .iog { display:inline-flex; align-items:stretch; border:1px solid var(--edge); border-radius:9px; overflow:hidden; }
+  .iog .lb { font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; color:var(--dim3);
+    padding:0 8px; border-right:1px solid var(--edge); display:flex; align-items:center; }
+  .iog .v { font-family:var(--mono); font-size:12px; padding:0 9px; color:var(--ink);
+    font-variant-numeric:tabular-nums; min-width:92px; text-align:center; display:flex; align-items:center;
+    justify-content:center; }
+  .iog .v.moved { color:var(--warn); }
+  .iog button { border:0; border-left:1px solid var(--edge); background:transparent; color:var(--dim2);
+    font-size:12px; padding:0 9px; height:auto; border-radius:0; }
+  .iog button.set { font-size:11px; color:var(--sky2); font-weight:600; }
+  .keys { margin-top:9px; font-family:var(--mono); font-size:10px; color:var(--dim3);
+    display:flex; gap:12px; flex-wrap:wrap; }
+  .keys b { color:var(--dim2); font-weight:500; border:1px solid var(--edge);
+    border-radius:4px; padding:0 4px; margin-right:4px; }
+  .side { border:1px solid var(--edge); border-radius:12px; background:var(--panel2);
+    display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+  .sh { padding:9px 11px; border-bottom:1px solid var(--edge); display:flex; align-items:center;
+    gap:7px; background:var(--panel); }
+  .sh b { font-size:12.5px; } .sh .c { font-family:var(--mono); font-size:10px; color:var(--dim3); margin-left:auto; }
+  .flt { display:flex; gap:4px; padding:7px 9px; border-bottom:1px solid var(--edge); }
+  .flt button { flex:1; font-size:11px; height:26px; padding:0; border-radius:7px; }
+  .flt button.on { background:rgba(56,189,248,.14); border-color:rgba(56,189,248,.5); color:var(--sky2); font-weight:600; }
+  .listbox { position:relative; flex:1; min-height:0; }
+  .list { position:absolute; inset:0; overflow-y:auto; }
+  .cue { padding:7px 11px; border-bottom:1px solid rgba(var(--tint),.06); cursor:pointer; display:flex; gap:8px; }
+  .cue:hover { background:rgba(var(--tint),.04); }
+  .cue.on { background:rgba(56,189,248,.10); box-shadow:inset 2px 0 0 var(--sky); }
+  .cue .n { font-family:var(--mono); font-size:10px; color:var(--dim3); flex:none; min-width:26px; padding-top:3px; }
+  .cue .b { flex:1; min-width:0; }
+  .cue .t { font-family:var(--mono); font-size:10px; color:var(--dim3); display:flex; gap:6px; }
+  .cue .t .d { margin-left:auto; }
+  .cue .k { font-size:12px; line-height:1.45; margin-top:1px; color:var(--dim);
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .cue.on .k { color:var(--ink); }
+  .cue .dots { display:flex; gap:3px; margin-top:3px; align-items:center; }
+  .cue .dots i { width:5px; height:5px; border-radius:99px; display:block; }
+  .cue .dots i.late { background:var(--err); } .cue .dots i.ed { background:var(--ok); }
+  .cue .dots span { font-size:10px; color:var(--dim3); margin-left:2px; }
+  .empty2 { padding:26px 12px; text-align:center; color:var(--dim3); font-size:11.5px; }
   .sv.warnc { color:var(--warn); }
   .sug { display:block; width:100%; text-align:left; margin-top:4px; padding:5px 8px; font-size:12px;
          white-space:pre-wrap; line-height:1.45; background:rgba(56,189,248,.07); border-color:rgba(56,189,248,.3); }
@@ -1063,7 +1179,7 @@ const unmark = (s) => String(s).replace(/\s*⏎\s*/g, '\n').replace(/[ \t]+\n/g,
 /* ══════════════════════════════════════════════════════════
    7. UI
    ══════════════════════════════════════════════════════════ */
-const BYNAME = { fmt:'표기 정리', spot:'타이밍 정리', spell:'맞춤법', scr:'화면 정보', man:'직접 수정', song:'♪ 제거' };
+const BYNAME = { fmt:'표기 정리', spot:'타이밍 정리', spell:'맞춤법', scr:'화면 정보', pv:'프리뷰', man:'직접 수정', song:'♪ 제거' };
 /* 마무리 작업 — 글자 → 타이밍 → 트랙 → 확인 → 내보내기 순 */
 const STEP_DEFS = [
   { id:'fmt', n:'표기 일괄 정리', k:'BATCH FORMAT', sub:'줄바꿈·부호 정돈',
@@ -1156,6 +1272,394 @@ function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols,
 }
 const MemoRow = memo(Row);
 
+/* ══════════════════════════════════════════════════════════
+   8. 프리뷰 — 영상 위에서 자막을 보며 타이밍과 문장을 잡는다
+   ══════════════════════════════════════════════════════════ */
+function Preview({ cues, apply, mark, lim, fps, meta }) {
+  const RATE = RATES[fps] || RATES['23.976'];
+  const FPS = RATE.real, FR = 1 / FPS;
+  const vid = useRef(null), aud = useRef(null), wf = useRef(null), strip = useRef(null), raf = useRef(0);
+  const [vurl, setVurl] = useState(null), [aurl, setAurl] = useState(null);
+  const [vname, setVname] = useState(''), [aname, setAname] = useState('');
+  const [vfail, setVfail] = useState('');
+  const [snd, setSnd] = useState('v');
+  const [t, setT] = useState(0), [playing, setPlaying] = useState(false);
+  const [sel, setSel] = useState(0), [edit, setEdit] = useState(false);
+  const [env, setEnv] = useState(null), [sp, setSp] = useState([]), [ana, setAna] = useState('');
+  const [span, setSpan] = useState(0), [c0, setC0] = useState(0);
+  const [filt, setFilt] = useState('all');
+  const [drag, setDrag] = useState(null);
+
+  const dur = useMemo(() => {
+    const last = cues.length ? cues[cues.length-1].out : 0;
+    return Math.max(last + 5, 1);
+  }, [cues]);
+  useEffect(() => { if (!span) setSpan(dur); }, [dur]);
+
+  const view = span || dur;
+  const t2f = (x) => (x - c0) / view;
+  const clampV = (s, c) => { const sp2 = Math.min(dur, Math.max(1.5, s));
+    return [sp2, Math.min(dur - sp2, Math.max(0, c))]; };
+  const setZoom = (ns, anchor) => {
+    const a = anchor == null ? t : anchor;
+    const f = Math.min(1, Math.max(0, (a - c0) / view));
+    const [s2, c2] = clampV(ns, a - f * Math.min(dur, Math.max(1.5, ns)));
+    setSpan(s2); setC0(c2);
+  };
+
+  /* 오디오에서 파형과 발화 구간을 뽑는다 (센터 채널 파일이면 훨씬 정확하다) */
+  const analyse = async (file) => {
+    setAna('소리를 읽는 중…');
+    try {
+      const buf = await file.arrayBuffer();
+      const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const ctx = new OC(1, 1, 8000);
+      const ab = await ctx.decodeAudioData(buf);
+      const ch = ab.getChannelData(0), sr = ab.sampleRate;
+      const hop = Math.round(sr * 0.05), n = Math.floor(ch.length / hop);
+      const e = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        let s = 0; const a = i * hop;
+        for (let k = 0; k < hop; k++) { const v = ch[a+k]; s += v*v; }
+        e[i] = Math.sqrt(s / hop);
+      }
+      const db = Array.from(e, v => 20 * Math.log10(v + 1e-9));
+      const sorted = [...db].sort((a,b) => a-b);
+      const floor = sorted[Math.floor(sorted.length * 0.2)] || -60;
+      const thr = floor + 9;
+      const segs = []; let st = -1;
+      for (let i = 0; i < n; i++) {
+        if (db[i] > thr) { if (st < 0) st = i; }
+        else if (st >= 0) { if ((i - st) * 0.05 >= 0.10) segs.push([st*0.05, i*0.05]); st = -1; }
+      }
+      if (st >= 0) segs.push([st*0.05, n*0.05]);
+      const mg = [];
+      for (const [a,b] of segs) {
+        if (mg.length && a - mg[mg.length-1][1] <= 0.20) mg[mg.length-1][1] = b;
+        else mg.push([a,b]);
+      }
+      setEnv(e); setSp(mg);
+      setAna(`발화 ${mg.length}구간 · ${(ab.duration/60).toFixed(1)}분`);
+    } catch (err) { setEnv(null); setSp([]); setAna('소리를 읽지 못했습니다 — ' + err.message); }
+  };
+
+  const openVid = (f) => { if (!f) return;
+    setVurl(u => { if (u) URL.revokeObjectURL(u); return URL.createObjectURL(f); });
+    setVname(f.name); setVfail(''); setSnd('v');
+    if (!aurl) analyse(f);
+  };
+  const openAud = (f) => { if (!f) return;
+    setAurl(u => { if (u) URL.revokeObjectURL(u); return URL.createObjectURL(f); });
+    setAname(f.name); setSnd('a'); analyse(f);
+  };
+
+  /* 재생 — 영상이 있으면 영상이 시계다 */
+  useEffect(() => {
+    const v = vid.current, a = aud.current;
+    if (v) v.muted = snd !== 'v';
+    if (a) a.muted = snd !== 'a';
+  }, [snd, vurl, aurl]);
+
+  const seek = (x) => {
+    const nt = Math.min(dur, Math.max(0, x));
+    setT(nt);
+    if (vid.current) vid.current.currentTime = nt;
+    if (aud.current) aud.current.currentTime = nt;
+  };
+  const toggle = () => {
+    const next = !playing; setPlaying(next);
+    const v = vid.current, a = aud.current;
+    if (next) { v && v.play().catch(()=>{}); a && a.play().catch(()=>{}); }
+    else { v && v.pause(); a && a.pause(); }
+  };
+  useEffect(() => {
+    if (!playing) return;
+    let last = performance.now();
+    const tick = (now) => {
+      const v = vid.current;
+      let nt;
+      if (v && !v.paused) nt = v.currentTime;
+      else { nt = t + (now - last) / 1000; }
+      last = now;
+      setT(prev => {
+        const x = Math.min(dur, nt);
+        if (x >= dur) { setPlaying(false); return dur; }
+        return x;
+      });
+      raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.current);
+  }, [playing, dur]);
+
+  /* 재생 위치를 따라 화면이 움직인다 */
+  useEffect(() => {
+    if (view >= dur) { if (c0) setC0(0); return; }
+    if (t < c0 + view*0.12 || t > c0 + view*0.88) {
+      const [, c2] = clampV(view, t - view/2); setC0(c2);
+    }
+  }, [t, view, dur]);
+
+  /* 지금 나오는 자막을 편집 바가 따라간다 */
+  const idxAt = (x) => cues.findIndex(c => x >= c.in && x <= c.out);
+  useEffect(() => { if (!playing || edit) return;
+    const k = idxAt(t); if (k >= 0 && k !== sel) setSel(k); }, [t, playing, edit]);
+
+  const cur = cues[sel];
+  const offOf = (c) => { if (!c || !sp.length) return null;
+    const near = sp.map(([a]) => a).filter(a => Math.abs(a - c.in) < 2.5);
+    return near.length ? near.reduce((p,q) => Math.abs(q-c.in) < Math.abs(p-c.in) ? q : p) - c.in : null; };
+  const late = (c) => { const o = offOf(c); return o !== null && o < -0.5; };
+  const lateCount = useMemo(() => cues.filter(late).length, [cues, sp]);
+
+  /* 파형 · 발화 · 큐 그리기 */
+  useEffect(() => {
+    const cv = wf.current; if (!cv) return;
+    const r = devicePixelRatio || 1, W = cv.clientWidth || 600, H = 52;
+    cv.width = W*r; cv.height = H*r;
+    const x = cv.getContext('2d'); x.setTransform(r,0,0,r,0,0); x.clearRect(0,0,W,H);
+    const cs = getComputedStyle(document.documentElement);
+    x.fillStyle = cs.getPropertyValue('--speechbg').trim() || 'rgba(56,189,248,.13)';
+    for (const [a,b] of sp) { const x0 = t2f(a)*W, x1 = t2f(b)*W;
+      if (x1 < 0 || x0 > W) continue; x.fillRect(x0, 0, Math.max(1, x1-x0), H); }
+    if (env) {
+      x.fillStyle = cs.getPropertyValue('--wavec').trim() || '#3d4d63';
+      for (let px = 0; px < W; px++) {
+        const ta = c0 + px/W*view, tb = c0 + (px+1)/W*view;
+        const a = Math.max(0, Math.floor(ta/0.05)), b = Math.max(a+1, Math.floor(tb/0.05));
+        let mx = 0; for (let k = a; k < b && k < env.length; k++) if (env[k] > mx) mx = env[k];
+        const h = Math.max(1, Math.min(1, mx*4) * (H-6));
+        x.fillRect(px, (H-h)/2, 1, h);
+      }
+    }
+  }, [env, sp, view, c0, cues]);
+
+  const s2 = (x) => s2t(x);
+  const tcf = (x) => { const f = Math.floor((x % 1) * FPS);
+    return s2t(x).slice(0,8) + ':' + String(f).padStart(2,'0'); };
+
+  const shown = cues.map((c,i)=>[c,i]).filter(([c,i]) =>
+    filt === 'all' || (filt === 'late' && late(c)) || (filt === 'edit' && c.edited));
+
+  const setCue = (i, patch) => apply(prev => prev.map((c,k) => {
+    if (k !== i) return c;
+    const n = { ...c, ...patch, edited: true, by: 'pv' };
+    if (patch.ko !== undefined && n.was0 === undefined) n.was0 = c.ko || '';
+    if ((patch.in !== undefined || patch.out !== undefined) && n.tin0 === undefined) {
+      n.tin0 = c.in; n.tout0 = c.out;
+    }
+    return n;
+  }));
+
+  const nudge = (w, d) => { const c = cues[sel], s = d*FR;
+    if (w === 'i') setCue(sel, { in: Math.min(c.out - FR, Math.max(0, c.in + s)) });
+    else if (w === 'o') setCue(sel, { out: Math.max(c.in + FR, c.out + s) });
+    else setCue(sel, { in: Math.max(0, c.in + s), out: c.out + s }); };
+  const snap = () => { const c = cues[sel];
+    const near = sp.map(([a]) => a).filter(a => Math.abs(a - c.in) < 2.5);
+    if (!near.length) return;
+    const a = near.reduce((p,q) => Math.abs(q-c.in) < Math.abs(p-c.in) ? q : p);
+    const len = c.out - c.in, ni = Math.max(0, a - 0.10);
+    setCue(sel, { in: ni, out: ni + len }); };
+  const revert = () => { const c = cues[sel];
+    apply(prev => prev.map((x,k) => { if (k !== sel) return x;
+      const n = { ...x };
+      if (n.was0 !== undefined) { n.ko = n.was0; delete n.was0; }
+      if (n.tin0 !== undefined) { n.in = n.tin0; n.out = n.tout0; delete n.tin0; delete n.tout0; }
+      delete n.by; n.edited = false; return n; })); };
+  const nextIssue = () => { const nx = cues.findIndex((c,k) => k > sel && late(c));
+    const k = nx >= 0 ? nx : cues.findIndex(late);
+    if (k >= 0) { setSel(k); seek(Math.max(0, cues[k].in - 0.4)); } };
+
+  /* 단축키 */
+  useEffect(() => {
+    const h = (e) => {
+      if (/input|textarea/i.test(e.target.tagName) || edit) return;
+      const K = e.key.toLowerCase();
+      if (e.code === 'Space') { e.preventDefault(); toggle(); }
+      else if (e.key === 'ArrowLeft')  { e.preventDefault(); seek(t - FR); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); seek(t + FR); }
+      else if (K === 'i' && cur) { e.preventDefault(); setCue(sel, { in: Math.min(t, cur.out - FR) }); }
+      else if (K === 'o' && cur) { e.preventDefault(); setCue(sel, { out: Math.max(t, cur.in + FR) }); }
+      else if (K === 'n') { e.preventDefault(); nextIssue(); }
+      else if (e.key === '+' || e.key === '=') { e.preventDefault(); setZoom(view/1.6); }
+      else if (e.key === '-' || e.key === '_') { e.preventDefault(); setZoom(view*1.6); }
+      else if (K === '0') { e.preventDefault(); setSpan(dur); setC0(0); }
+    };
+    addEventListener('keydown', h); return () => removeEventListener('keydown', h);
+  }, [t, sel, edit, view, dur, cur, playing, sp]);
+
+  /* 타임라인 끌기 */
+  const tlw = () => (strip.current ? strip.current.clientWidth : 600);
+  const onDown = (e) => {
+    const b = e.target.closest('[data-k]'); if (!b) return;
+    const k = +b.dataset.k, r = b.getBoundingClientRect(), dx = e.clientX - r.left;
+    const zone = (r.width >= 14 && dx <= 5) ? 'i' : (r.width >= 14 && dx >= r.width - 5) ? 'o' : 'b';
+    setDrag({ k, zone, x0: e.clientX, i0: cues[k].in, o0: cues[k].out });
+    setSel(k); setEdit(false); strip.current.setPointerCapture(e.pointerId);
+  };
+  const onMove = (e) => { if (!drag) return;
+    const dt = (e.clientX - drag.x0) / tlw() * view, c = cues[drag.k];
+    if (drag.zone === 'i') setCue(drag.k, { in: Math.min(drag.o0 - FR, Math.max(0, drag.i0 + dt)) });
+    else if (drag.zone === 'o') setCue(drag.k, { out: Math.max(drag.i0 + FR, drag.o0 + dt) });
+    else setCue(drag.k, { in: Math.max(0, drag.i0 + dt), out: drag.o0 + dt }); };
+  const onUp = (e) => { if (drag) { strip.current.releasePointerCapture(e.pointerId); setDrag(null); } };
+
+  const L = cur ? Math.max(...(cur.ko||'').split('\n').map(x => CLEN(x))) : 0;
+  const P = cur ? CLEN(cur.ko||'') / Math.max(0.01, cur.out - cur.in) : 0;
+
+  return (
+    <div className="step">
+      <h2>프리뷰 — 영상 위에서 확인</h2>
+      {!cues.length ? (
+        <p className="hint">먼저 <b>자막 번역</b>이나 <b>자막 검수</b>에서 자막을 불러오세요.
+          프리뷰는 그 자막을 그대로 씁니다.</p>
+      ) : (
+      <div className="pv">
+        <div className="player">
+          <div className="srcbar">
+            <input id="pvv" type="file" accept="video/*" hidden
+              onChange={e => { openVid(e.target.files[0]); e.target.value=''; }} />
+            <input id="pva" type="file" accept="audio/*,video/*" hidden
+              onChange={e => { openAud(e.target.files[0]); e.target.value=''; }} />
+            {vurl ? <><span className="chipf"><span className="ic" /><b>{vname}</b></span>
+              <button className="sm" onClick={()=>document.getElementById('pvv').click()}>교체</button></>
+              : <button className="getb" onClick={()=>document.getElementById('pvv').click()}>🎬 영상 가져오기</button>}
+            {aurl ? <><span className="chipf"><span className="ic" /><b>{aname}</b></span>
+              <button className="sm" onClick={()=>document.getElementById('pva').click()}>교체</button></>
+              : <button className="getb gh" onClick={()=>document.getElementById('pva').click()}>🔊 오디오 가져오기</button>}
+            <span style={{flex:1}} />
+            {ana && <span className="anas">{ana}</span>}
+            <span className="snd">
+              <button className={snd==='v'?'on':''} disabled={!vurl} onClick={()=>setSnd('v')}>영상</button>
+              <button className={snd==='a'?'on':''} disabled={!aurl} onClick={()=>setSnd('a')}>오디오</button>
+              <button className={snd==='m'?'on':''} onClick={()=>setSnd('m')}>끔</button>
+            </span>
+          </div>
+
+          <div className="screen">
+            {vurl && <video ref={vid} src={vurl} playsInline
+              onLoadedMetadata={() => setVfail('')}
+              onError={() => setVfail('이 브라우저에서 재생할 수 없는 형식입니다')} />}
+            {!vurl && <div className="drop"><div className="in">
+              <b>영상을 가져오세요</b>
+              <p>mp4 · webm · H.264 mov<br />ProRes 는 사파리에서만 재생됩니다<br />
+                파일은 올라가지 않고 이 컴퓨터에서만 재생됩니다</p></div></div>}
+            {vfail && <div className="drop"><div className="in">
+              <b>{vfail}</b>
+              <p>H.264 프록시를 만들어 쓰세요<br />
+                <code style={{fontSize:10.5}}>ffmpeg -i 마스터.mov -vf scale=854:-2 -c:v libx264 -crf 28 프리뷰.mp4</code></p></div></div>}
+            <div className="tcb">{tcf(t)}</div>
+            <div className="povl">{(cues[idxAt(t)]||{}).ko || ''}</div>
+          </div>
+          {aurl && <audio ref={aud} src={aurl} />}
+
+          <div className="tr">
+            <button className="pb" onClick={toggle} title="재생 · Space">{playing ? '❚❚' : '▶'}</button>
+            <button className="ib" onClick={()=>seek(t-FR)} title="1프레임 뒤 · ←">‹</button>
+            <button className="ib" onClick={()=>seek(t+FR)} title="1프레임 앞 · →">›</button>
+            <span className="tnow">{tcf(t)}</span>
+            <span style={{flex:1}} />
+            {lateCount > 0 && <button className="jump" onClick={nextIssue}><i />다음 문제 큐 {lateCount}</button>}
+            <span className="zoom">
+              <button onClick={()=>{setSpan(dur);setC0(0);}}>전체</button>
+              <button onClick={()=>setZoom(view*1.6)} disabled={view>=dur}>−</button>
+              <button className="sp2">{view>=dur-0.01 ? '전체'
+                : `${String(Math.floor(view/60)).padStart(2,'0')}:${String(Math.round(view%60)).padStart(2,'0')}`}</button>
+              <button onClick={()=>setZoom(view/1.6)} disabled={view<=1.5}>+</button>
+            </span>
+          </div>
+
+          <div className="tl" onClick={e => { if (e.target.closest('[data-k]') || drag) return;
+              const r = strip.current.getBoundingClientRect();
+              seek(c0 + (e.clientX - r.left)/r.width*view); }}
+            onWheel={e => { e.preventDefault();
+              const r = strip.current.getBoundingClientRect();
+              setZoom(view * (e.deltaY > 0 ? 1.18 : 1/1.18), c0 + (e.clientX - r.left)/r.width*view); }}>
+            <canvas ref={wf} />
+            <div className="cuest" ref={strip}
+              onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}>
+              {cues.map((c,k) => { const a = t2f(c.in), b = t2f(c.out);
+                if (b < -0.05 || a > 1.05) return null;
+                return <i key={k} data-k={k} title={'#'+(k+1)}
+                  className={sel===k ? 'sel' : c.edited ? 'ed' : late(c) ? 'bad' : ''}
+                  style={{left:`${a*100}%`, width:`${Math.max(.2,(b-a)*100)}%`}} />; })}
+            </div>
+            {t2f(t) >= 0 && t2f(t) <= 1 &&
+              <div className="head" style={{left:`calc(10px + ${t2f(t)} * (100% - 20px))`}} />}
+          </div>
+
+          {cur && <div className="eb">
+            <div className="ebh">
+              <span className="no">#{sel+1}</span>
+              <span className={'st2' + (late(cur) ? ' bad' : '')}>
+                {!sp.length ? '오디오를 가져오면 발화와 맞는지 봅니다'
+                  : late(cur) ? `말이 ${Math.abs(offOf(cur)).toFixed(2)}초 먼저 시작합니다`
+                  : offOf(cur) === null ? '가까운 발화를 못 찾았습니다' : '발화와 잘 맞습니다'}</span>
+              <span style={{flex:1}} />
+              <span className={'met' + (L>lim || P>SPOT.cpsMax ? ' over' : '')}>{L}자 · 초당 {P.toFixed(1)}자</span>
+            </div>
+            {edit
+              ? <textarea autoFocus rows={Math.max(2,(cur.ko||'').split('\n').length)} defaultValue={cur.ko||''}
+                  onBlur={e => { setCue(sel, { ko: e.target.value }); setEdit(false); }}
+                  onKeyDown={e => { if (e.key === 'Escape') setEdit(false); }} />
+              : <div className="ebtxt" onClick={() => { setEdit(true); if (playing) toggle(); }}>
+                  {cur.ko || <span style={{color:'var(--dim3)'}}>(빈 자막) — 눌러서 입력</span>}</div>}
+            <div className="io">
+              <span className="iog"><span className="lb">IN</span>
+                <span className={'v' + (cur.tin0 !== undefined ? ' moved' : '')}>{tcf(cur.in)}</span>
+                <button onClick={()=>nudge('i',-1)}>‹</button><button onClick={()=>nudge('i',1)}>›</button>
+                <button className="set" onClick={()=>setCue(sel,{in:Math.min(t,cur.out-FR)})}>지금</button></span>
+              <span className="iog"><span className="lb">OUT</span>
+                <span className={'v' + (cur.tin0 !== undefined ? ' moved' : '')}>{tcf(cur.out)}</span>
+                <button onClick={()=>nudge('o',-1)}>‹</button><button onClick={()=>nudge('o',1)}>›</button>
+                <button className="set" onClick={()=>setCue(sel,{out:Math.max(t,cur.in+FR)})}>지금</button></span>
+              <span style={{flex:1}} />
+              <button className="sm" onClick={()=>nudge('b',-1)}>◀ 통째로</button>
+              <button className="sm" onClick={()=>nudge('b',1)}>통째로 ▶</button>
+              <button className="sm" disabled={!sp.length} onClick={snap}>발화에 붙이기</button>
+              {(cur.tin0 !== undefined || cur.was0 !== undefined) &&
+                <button className="sm" onClick={revert}>되돌리기</button>}
+            </div>
+            <div className="keys">
+              <span><b>Space</b>재생</span><span><b>← →</b>1프레임</span>
+              <span><b>I</b>인점</span><span><b>O</b>아웃점</span>
+              <span><b>N</b>다음 문제</span><span><b>+ −</b>확대·축소</span><span><b>0</b>전체</span>
+            </div>
+          </div>}
+        </div>
+
+        <div className="side">
+          <div className="sh"><b>자막</b>
+            <span className="c">{cues.length}큐{lateCount ? ` · 늦음 ${lateCount}` : ''}</span></div>
+          <div className="flt">
+            {[['all','전체'],['late','늦음'],['edit','수정됨']].map(([k,lab]) => (
+              <button key={k} className={filt===k?'on':''} onClick={()=>setFilt(k)}>{lab}</button>
+            ))}
+          </div>
+          <div className="listbox"><div className="list">
+            {shown.length === 0 ? <div className="empty2">해당하는 큐가 없습니다</div>
+              : shown.map(([c,k]) => (
+              <div key={k} className={'cue' + (sel===k?' on':'')}
+                onClick={() => { setSel(k); setEdit(false); seek(Math.max(0, c.in - 0.4)); }}>
+                <span className="n">{k+1}</span>
+                <span className="b">
+                  <span className="t">{s2(c.in).slice(3,8)}<span className="d">{(c.out-c.in).toFixed(2)}초</span></span>
+                  <span className="k">{(c.ko||'').replace(/\n/g,' ') || '—'}</span>
+                  {(late(c) || c.edited) && <span className="dots">
+                    {late(c) && <i className="late" />}{c.edited && <i className="ed" />}
+                    <span>{[late(c)&&'늦음', c.edited&&'고침'].filter(Boolean).join(' · ')}</span></span>}
+                </span>
+              </div>
+            ))}
+          </div></div>
+        </div>
+      </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [raw, setRaw]       = useState(null);   // 원본 큐
   const [meta, setMeta]     = useState('');
@@ -1167,6 +1671,7 @@ function App() {
   const [scale, setScale]   = useState('1');    // 프레임레이트 보정
   const [fps, setFps]       = useState('23.976');  // 프레임 타임코드 해석용
   const [mode, setMode]     = useState('translate');   // translate | review
+  const [screen, setScreen] = useState('work');        // work | preview
   // 화면 밝기 — 밝게 / 어둡게 두 가지.
   // 고른 적이 없으면 OS 설정을 따르고, 한 번 누르면 그때부터 고른 값으로 고정된다.
   const [theme, setTheme] = useState(() => {
@@ -1648,16 +2153,20 @@ function App() {
       </p>
 
       <div className="tabs">
-        <div className={'tabbar' + (mode==='review' ? ' b2' : '')} role="tablist">
+        <div className={'tabbar' + (screen==='preview' ? ' b3' : mode==='review' ? ' b2' : '')} role="tablist">
           <span className="ind" aria-hidden="true" />
-          <button role="tab" aria-selected={mode==='translate'}
-            onClick={() => { if (mode!=='translate') { setMode('translate'); reset(); } }}>
+          <button role="tab" aria-selected={screen==='work' && mode==='translate'}
+            onClick={() => { setScreen('work'); if (mode!=='translate') { setMode('translate'); reset(); } }}>
             자막 번역</button>
-          <button role="tab" aria-selected={mode==='review'}
-            onClick={() => { if (mode!=='review') { setMode('review'); reset(); } }}>
+          <button role="tab" aria-selected={screen==='work' && mode==='review'}
+            onClick={() => { setScreen('work'); if (mode!=='review') { setMode('review'); reset(); } }}>
             자막 검수</button>
+          <button role="tab" aria-selected={screen==='preview'}
+            onClick={() => setScreen('preview')}>프리뷰</button>
         </div>
-        <span className="tabnote">{mode==='translate'
+        <span className="tabnote">{screen==='preview'
+          ? '영상을 얹어 자막을 보면서 타이밍과 문장을 잡습니다 · 같은 자막을 씁니다'
+          : mode==='translate'
           ? '해외 자막(중국어·영어)을 한글로 번역하고 검수합니다 · API 키 필요'
           : '이미 한글인 자막을 검수만 합니다 · API 키 없이 됩니다'}</span>
         <button className={'theme' + (theme==='dark' ? ' dark' : '')}
@@ -1675,6 +2184,9 @@ function App() {
         </button>
       </div>
 
+      {screen === 'preview'
+        ? <Preview cues={cues} apply={apply} mark={mark} lim={lim} fps={fps} meta={meta} />
+        : <>
       {/* 01 파일 */}
       <div className="step">
         <h2>01 — 자막 파일</h2>
@@ -2096,6 +2608,7 @@ function App() {
         </div>
       </div>
       )}
+      </>}
     </div>
   );
 }
