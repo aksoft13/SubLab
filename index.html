@@ -217,6 +217,9 @@
   .chg .cb { flex:1; min-width:0; line-height:1.55; }
   .chg .wasx { color:var(--dim2); }
   .sv { font-size:11.5px; color:var(--ok); white-space:nowrap; }
+  .who { display:inline-block; font-family:var(--mono); font-size:9.5px; letter-spacing:.04em;
+    color:var(--dim2); background:rgba(var(--tint),.07); border-radius:4px; padding:0 5px;
+    margin-bottom:3px; vertical-align:1px; }
 
   /* ── 프리뷰 ── */
   .pv { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:13px; align-items:stretch; }
@@ -758,6 +761,8 @@ const SPELL = [
 ];
 /* 3인칭 대명사 — 관계·호칭으로 바꾼다 (완성작 17,292큐 중 0.7%) */
 const PRON = /(?:^|[\s'"(\n])(그녀|그들|그[는가를의])/;
+/* 중국어 원문은 글자로 성별을 가른다 — 한글 대명사와 어긋나면 확실한 오류다 */
+const HE = /(?:^|[^女])他/, SHE = /她/;
 const stripTag = (s) => s.replace(/<\/?i>/g, '');
 
 function notation(ko, en) {
@@ -827,7 +832,7 @@ const WCAT = [
   ['line',  /분리$/],
   ['space', /띈다|공백 누락/],
   ['spell', /→/],
-  ['tr',    /— 이름으로/],
+  ['tr',    /— 이름으로|원문은 [他她]/],
 ];
 const catOf = (w) => (WCAT.find(([, re]) => re.test(w)) || ['mark'])[0];
 const ruleKey = (w) => w.replace(/\s*\(.*\)$/, '').replace(/^'.*?'\s*/, '').replace(/^\d+자.*/, '글자수 초과');
@@ -842,6 +847,7 @@ const WHINT = [
   [/의존명사.*분리/,        '앞말과 붙여 주세요'],
   [/보조용언 분리/,         '앞말과 붙여 주세요'],
   [/— 이름으로/,            '3인칭 대명사'],
+  [/원문은 [他她]/,          '성별이 어긋납니다'],
   [/인용 후보/,             '인용문이면 곧은 작은따옴표'],
   [/화면 텍스트 후보/,      '기울임 확인'],
   [/마침표/,                '쓰지 않습니다'],
@@ -858,10 +864,19 @@ function isScreenInfo(ko, en) {
   return lines.length > 0 && lines.every(l => /^<i>.*<\/i>$/.test(l.trim()));
 }
 
+function genderMismatch(ko, en) {
+  if (!en) return null;
+  const she = SHE.test(en), he = HE.test(en);
+  if (she && !he && /그(?:는|가|를|의)(?![가-힣])/.test(ko)) return '원문은 她(여성) — 남성 대명사';
+  if (he && !she && /그녀/.test(ko)) return '원문은 他(남성) — 여성 대명사';
+  return null;
+}
+
 function inspect(ko, lim, kind, en, dur = 0) {
   const lines = stripTag(ko).split('\n');
   const isDash = lines.some(l => l.trim().startsWith('-'));
   const w = notation(ko, en);
+  const gm = genderMismatch(ko, en || ''); if (gm) w.push(gm);
   if (lines.length > 2) w.push('3줄 이상');
   if (kind === 'lyric') return w;              // 가사는 길이·결합 검사 제외
   if (!isDash) {
@@ -1047,7 +1062,10 @@ ${L.len}
 - 같은 호칭·감탄이 세 번 이상 연속되면 두 번째부터는 상황에 맞게 변주한다.
   화면에 같은 자막이 반복해 뜨는 것을 막기 위한 것이며, 새로운 사실을 더하지는 않는다.
   Master! / Master! / Master! → 도사님, 도사님 / 도사님, 잠시만요 / 도사님
-- 화자 이름 표기는 넣지 않는다.
+- 화자 이름 표기는 자막 본문에 넣지 않는다. 대신 who 칸에 따로 적는다.
+- who: 이 대사를 말하는 인물을 적는다. 이름이 나왔으면 이름을, 모르면 「남1」「여2」처럼
+  작품 전체에서 일관된 임시 이름을 쓴다. 같은 인물에게 같은 이름을 계속 쓰는 것이 핵심이다.
+  화자를 명시적으로 정하고 나면 높임 등급이 흔들리지 않는다.
 - 표준 표기를 지킨다: 너가(X)→네가, 됬(X)→됐, 어떻해(X)→어떡해, 웬지(X)→왠지.
 ${L.noun}
 - 뜻이 전달되는 선에서 최대한 간결하게 다듬는다. 원문 구조를 그대로 옮기지 마라.
@@ -1133,8 +1151,9 @@ const ARR_SCHEMA = {
   type: 'object',
   properties: { lines: { type: 'array', items: {
     type: 'object',
-    properties: { n: { type: 'integer' }, ko: { type: 'string' } },
-    required: ['n','ko'], additionalProperties: false } } },
+    properties: { n: { type: 'integer' }, ko: { type: 'string' },
+      who: { type: 'string', description: '이 대사를 말하는 인물. 이름을 모르면 남1·여2 처럼 일관된 임시 이름' } },
+    required: ['n','ko','who'], additionalProperties: false } } },
   required: ['lines'], additionalProperties: false,
 };
 /* 맞춤법 검사 — 고칠 것만 돌려받는다. 멀쩡한 큐는 응답에 넣지 않는다. */
@@ -1221,6 +1240,7 @@ function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols,
         );
       })}
       <td className="ko">
+        {c.who && <span className="who" title="번역할 때 모델이 정한 화자">{c.who}</span>}
         {editing ? (
           <textarea autoFocus rows={Math.max(2, (c.ko||'').split('\n').length)} defaultValue={c.ko || ''}
             onBlur={(e) => { onChange(e.target.value); setEditing(false); }}
@@ -1839,7 +1859,15 @@ function App() {
       for (const b of batches) {
         const chunk = work.slice(b.from, b.to);
         const system = sysPrompt({ glossary: gloss, tone, lim, notes, lyric: b.kind === 'lyric', srcLang, bang });
-        const user = chunk.map((c, i) => {
+        /* 직전 배치의 끝자락을 문맥으로 넘긴다 — 없으면 40큐마다 말투가 새로 추측된다 */
+        const back = work.slice(Math.max(0, b.from - 8), b.from).filter(c => (c.ko||'').trim());
+        const head = back.length
+          ? '[앞선 대사 — 번역하지 말 것. 말투와 호칭을 여기에 맞춘다]\n'
+            + back.map(c => `${(c.en||'').replace(/\n/g,' ')}  →  ${(c.ko||'').replace(/\n/g,' ')}`
+                + (c.who ? `  (${c.who})` : '')).join('\n')
+            + '\n\n[여기부터 번역]\n'
+          : '';
+        const user = head + chunk.map((c, i) => {
           const head = `${i+1}. ${c.en.replace(/\n/g,' ⏎ ')}`;
           const extra = refCols
             .map(lab => [lab, ((c.refs || {})[lab] || '').replace(/\n/g,' ⏎ ').trim()])
@@ -1852,10 +1880,12 @@ function App() {
         try { arr = JSON.parse(text).lines; } catch (e) { throw new Error('응답 파싱 실패: ' + text.slice(0,200)); }
         if (!Array.isArray(arr)) throw new Error('응답이 배열이 아닙니다');
         const byN = new Map(arr.filter(o => o && typeof o.n === 'number').map(o => [o.n, o.ko]));
+        const byWho = new Map(arr.filter(o => o && typeof o.n === 'number' && o.who).map(o => [o.n, o.who]));
         chunk.forEach((c, i) => {
           const v = byN.get(i + 1);
           if (v == null) { missing.push(b.from + i + 1); c.ko = ''; return; }
           c.ko = finalize(v, { keepNote, lim, kind: c.kind });
+          const w = byWho.get(i + 1); if (w) c.who = w;
         });
         done = b.to;
         setCues([...work]);
