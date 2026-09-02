@@ -210,6 +210,11 @@
   .chg .cb { flex:1; min-width:0; line-height:1.55; }
   .chg .wasx { color:var(--dim2); }
   .sv { font-size:11.5px; color:var(--ok); white-space:nowrap; }
+  .prog { display:flex; align-items:center; gap:10px; margin:0 0 10px; }
+  .pbar { flex:1; height:6px; border-radius:99px; background:rgba(var(--tint),.10); overflow:hidden; }
+  .pbar i { display:block; height:100%; background:var(--sky); border-radius:99px; transition:width .35s; }
+  .pbar i.done { background:var(--ok); }
+  .prog span { font-family:var(--mono); font-size:11px; color:var(--dim2); white-space:nowrap; }
   .who { display:inline-block; font-family:var(--mono); font-size:9.5px; letter-spacing:.04em;
     color:var(--dim2); background:rgba(var(--tint),.07); border-radius:4px; padding:0 5px;
     margin-bottom:3px; vertical-align:1px; }
@@ -249,6 +254,7 @@
     padding:0; font-size:12px; display:grid; place-items:center; flex:none; }
   .ib { width:28px; height:28px; border-radius:8px; padding:0; font-size:15px; line-height:1;
     display:grid; place-items:center; flex:none; }
+  .sep2 { width:1px; height:20px; background:var(--edge); flex:none; margin:0 2px; }
   .tnow { font-family:var(--mono); font-size:13px; color:var(--sky2); font-variant-numeric:tabular-nums; }
   .jump { height:28px; font-size:11.5px; padding:0 10px; display:inline-flex; align-items:center; gap:6px; }
   .jump i { width:6px; height:6px; border-radius:99px; background:var(--warn); display:block; }
@@ -1302,6 +1308,8 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
   const [span, setSpan] = useState(0), [c0, setC0] = useState(0);
   const [filt, setFilt] = useState('all');
   const [drag, setDrag] = useState(null);
+  const tRef = useRef(0), stopAt = useRef(null);
+  useEffect(() => { tRef.current = t; }, [t]);
 
   const dur = useMemo(() => {
     const last = cues.length ? cues[cues.length-1].out : 0;
@@ -1379,26 +1387,35 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
     if (vid.current) vid.current.currentTime = nt;
     if (aud.current) aud.current.currentTime = nt;
   };
-  const toggle = () => {
-    const next = !playing; setPlaying(next);
-    const v = vid.current, a = aud.current;
-    if (next) { v && v.play().catch(()=>{}); a && a.play().catch(()=>{}); }
-    else { v && v.pause(); a && a.pause(); }
+  const stop = () => { setPlaying(false);
+    if (vid.current) vid.current.pause();
+    if (aud.current) aud.current.pause(); };
+  const start = () => { setPlaying(true);
+    if (vid.current) vid.current.play().catch(()=>{});
+    if (aud.current) aud.current.play().catch(()=>{}); };
+  const toggle = () => { stopAt.current = null; playing ? stop() : start(); };
+  /* 프레임 단위 조작은 재생을 멈추고 한다 — 흐르는 중에 밀면 자리가 어긋난다 */
+  const nudgeTo = (x) => { stopAt.current = null; if (playing) stop(); seek(x); };
+  /* 큐 하나로 건너뛰어 그 큐만 들어 본다 — 소리와 자막이 맞는지 빨리 훑는 용도 */
+  const gotoCue = (k, play) => {
+    if (k < 0 || k >= cues.length) return;
+    const c = cues[k];
+    setSel(k); setEdit(false);
+    seek(Math.max(0, c.in - 0.15));
+    if (play) { stopAt.current = c.out + 0.12; start(); }
+    else stopAt.current = null;
   };
   useEffect(() => {
     if (!playing) return;
     let last = performance.now();
     const tick = (now) => {
       const v = vid.current;
-      let nt;
-      if (v && !v.paused) nt = v.currentTime;
-      else { nt = t + (now - last) / 1000; }
+      let x = (v && !v.paused) ? v.currentTime : tRef.current + (now - last) / 1000;
       last = now;
-      setT(prev => {
-        const x = Math.min(dur, nt);
-        if (x >= dur) { setPlaying(false); return dur; }
-        return x;
-      });
+      x = Math.min(dur, x);
+      tRef.current = x; setT(x);
+      if (stopAt.current != null && x >= stopAt.current) { stopAt.current = null; stop(); return; }
+      if (x >= dur) { stop(); return; }
       raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);
@@ -1490,10 +1507,14 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
       if (/input|textarea/i.test(e.target.tagName) || edit) return;
       const K = e.key.toLowerCase();
       if (e.code === 'Space') { e.preventDefault(); toggle(); }
-      else if (e.key === 'ArrowLeft')  { e.preventDefault(); seek(t - FR); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); seek(t + FR); }
-      else if (K === 'i' && cur) { e.preventDefault(); setCue(sel, { in: Math.min(t, cur.out - FR) }); }
-      else if (K === 'o' && cur) { e.preventDefault(); setCue(sel, { out: Math.max(t, cur.in + FR) }); }
+      else if (e.key === 'ArrowLeft')  { e.preventDefault();
+        e.shiftKey ? nudgeTo(t - FR) : gotoCue(sel - 1, true); }
+      else if (e.key === 'ArrowRight') { e.preventDefault();
+        e.shiftKey ? nudgeTo(t + FR) : gotoCue(sel + 1, true); }
+      else if (K === 'i' && cur) { e.preventDefault(); stopAt.current = null; if (playing) stop();
+        setCue(sel, { in: Math.min(t, cur.out - FR) }); }
+      else if (K === 'o' && cur) { e.preventDefault(); stopAt.current = null; if (playing) stop();
+        setCue(sel, { out: Math.max(t, cur.in + FR) }); }
       else if (K === 'n') { e.preventDefault(); nextIssue(); }
       else if (e.key === '+' || e.key === '=') { e.preventDefault(); setZoom(view/1.6); }
       else if (e.key === '-' || e.key === '_') { e.preventDefault(); setZoom(view*1.6); }
@@ -1569,8 +1590,13 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
 
           <div className="tr">
             <button className="pb" onClick={toggle} title="재생 · Space">{playing ? '❚❚' : '▶'}</button>
-            <button className="ib" onClick={()=>seek(t-FR)} title="1프레임 뒤 · ←">‹</button>
-            <button className="ib" onClick={()=>seek(t+FR)} title="1프레임 앞 · →">›</button>
+            <button className="ib" onClick={()=>gotoCue(sel-1,true)} disabled={sel<=0}
+              title="이전 자막으로 — 그 큐만 재생합니다 · ←">⏮</button>
+            <button className="ib" onClick={()=>gotoCue(sel+1,true)} disabled={sel>=cues.length-1}
+              title="다음 자막으로 — 그 큐만 재생합니다 · →">⏭</button>
+            <span className="sep2" />
+            <button className="ib" onClick={()=>nudgeTo(t-FR)} title="1프레임 뒤 · ⇧←">‹</button>
+            <button className="ib" onClick={()=>nudgeTo(t+FR)} title="1프레임 앞 · ⇧→">›</button>
             <span className="tnow">{tcf(t)}</span>
             <span style={{flex:1}} />
             {lateCount > 0 && <button className="jump" onClick={nextIssue}><i />다음 문제 큐 {lateCount}</button>}
@@ -1635,8 +1661,8 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
                 <button className="sm" onClick={revert}>되돌리기</button>}
             </div>
             <div className="keys">
-              <span><b>Space</b>재생</span><span><b>← →</b>1프레임</span>
-              <span><b>I</b>인점</span><span><b>O</b>아웃점</span>
+              <span><b>← →</b>앞뒤 자막 (그 큐만 재생)</span><span><b>⇧← →</b>1프레임</span>
+              <span><b>Space</b>재생</span><span><b>I</b>인점</span><span><b>O</b>아웃점</span>
               <span><b>N</b>다음 문제</span><span><b>+ −</b>확대·축소</span><span><b>0</b>전체</span>
             </div>
           </div>}
@@ -1654,7 +1680,7 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
             {shown.length === 0 ? <div className="empty2">해당하는 큐가 없습니다</div>
               : shown.map(([c,k]) => (
               <div key={k} className={'cue' + (sel===k?' on':'')}
-                onClick={() => { setSel(k); setEdit(false); seek(Math.max(0, c.in - 0.4)); }}>
+                onClick={() => gotoCue(k, playing)}>
                 <span className="n">{k+1}</span>
                 <span className="b">
                   <span className="t">{s2(c.in).slice(3,8)}<span className="d">{(c.out-c.in).toFixed(2)}초</span></span>
@@ -2512,6 +2538,15 @@ function App() {
                 </button>
               </div>
               <p className="dd">{st.d}</p>
+              {st.id === 'spell' && prog && (
+                <div className="prog">
+                  <span className="pbar">
+                    <i className={prog.done >= prog.total ? 'done' : ''}
+                       style={{width: `${Math.round(prog.done / prog.total * 100)}%`}} /></span>
+                  <span>{prog.done} / {prog.total}큐 · {Math.round(prog.done / prog.total * 100)}%
+                    {prog.done >= prog.total ? ' · 끝' : ''}</span>
+                </div>
+              )}
               {st.cau && <p className="cau">{st.cau}</p>}
               {rows.length > 0 && (
                 <ul className="chg">
