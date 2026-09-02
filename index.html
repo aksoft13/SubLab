@@ -2462,6 +2462,10 @@ function App() {
           <button title="현재 큐와 무엇이 바뀌었는지를 파일 하나로 저장합니다. API 키는 넣지 않습니다"
             onClick={saveWork}>작업 파일 저장</button>
           <button onClick={() => document.getElementById('workpick').click()}>열기</button>
+          <button className="primary" onClick={download}
+            title={subCount ? `본편과 서브를 각각 SRT 로 저장합니다 (본편 ${cues.filter(c=>(c.ko||'').trim() && c.track!=='sub').length}큐 · 서브 ${subCount}큐)`
+              : '한글 자막을 SRT 로 저장합니다'}>
+            한글 SRT 내려받기</button>
         </div>
 
         <div className="rail">
