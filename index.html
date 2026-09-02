@@ -176,32 +176,25 @@
   .chip b { font-family:var(--mono); font-size:11px; font-weight:700; }
   .chip.on { background:rgba(var(--tint),.07); color:var(--k,var(--sky)); border-color:currentColor; }
   .chip.z { opacity:.4; }
-  /* 단계 레일 — 원형과 연결선으로 순서를 드러낸다 */
-  .rail { display:flex; align-items:flex-start; width:100%; overflow-x:auto; margin:6px 0 14px; }
-  .rail .st { flex:1 1 0; min-width:106px; height:auto; position:relative; padding:27px 5px 0;
-    text-align:center; background:transparent; border:0; border-radius:0; font-family:inherit;
-    cursor:pointer; transition:color .15s; }
-  .rail .st::before { content:''; position:absolute; top:11px; left:0; right:0; height:2px;
-    background:var(--edge); transition:background .2s; }
-  .rail .st:first-child::before { left:50%; }
-  .rail .st:last-child::before { right:50%; }
-  .rail .st.done::before { background:var(--ok); }
-  .rail .st u { position:absolute; top:0; left:50%; transform:translateX(-50%);
-    width:24px; height:24px; border-radius:99px; background:var(--bg); border:2px solid var(--edge);
-    display:grid; place-items:center; text-decoration:none;
-    font-family:var(--mono); font-size:10px; font-weight:700; color:var(--dim3); transition:all .18s; }
-  .rail .st b { display:block; font-size:12.5px; font-weight:700; color:var(--dim2); line-height:1.35; }
+  /* 단계 레일 — 겹쳐 물린 꺾쇠로 순서를 드러낸다 */
+  .rail { display:flex; width:100%; overflow-x:auto; margin:6px 0 14px; padding-bottom:2px; }
+  .rail .st { flex:1 1 0; min-width:104px; height:auto; margin-left:-14px; padding:9px 8px 10px 30px;
+    background:rgba(var(--tint),.055); color:var(--dim2); border:0; border-radius:0;
+    font-family:inherit; font-size:12.5px; font-weight:700; text-align:left; cursor:pointer;
+    transition:background .18s, color .18s;
+    clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%); }
+  .rail .st:first-child { margin-left:0; padding-left:14px;
+    clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%); }
+  .rail .st:last-child { clip-path:polygon(0 0, 100% 0, 100% 100%, 0 100%, 16px 50%); }
+  .rail .st u { display:block; text-decoration:none; font-family:var(--mono); font-size:9.5px;
+    letter-spacing:.12em; opacity:.6; margin-bottom:1px; }
   .rail .st em { display:block; font-style:normal; font-weight:400; font-size:10.5px;
-    color:var(--dim3); margin-top:2px; }
-  .rail .st:hover b { color:var(--dim); }
-  .rail .st:hover u { border-color:var(--dim3); }
-  .rail .st.sel u { border-color:var(--sky); color:var(--sky); box-shadow:0 0 0 4px rgba(56,189,248,.15); }
-  .rail .st.sel b { color:var(--ink); }
-  .rail .st.done u { background:var(--ok); border-color:var(--ok); color:var(--onok); }
-  .rail .st.done b, .rail .st.done em { color:var(--ok); }
-  /* 고른 단계는 완료 여부와 상관없이 테두리로 표시한다 */
-  .rail .st.sel u { box-shadow:0 0 0 4px rgba(56,189,248,.22); }
-  .rail .st.sel.done u { box-shadow:0 0 0 4px rgba(56,189,248,.3); }
+    opacity:.62; margin-top:2px; }
+  .rail .st:hover { background:rgba(var(--tint),.10); color:var(--ink); }
+  /* 끝낸 단계는 초록, 지금 펼친 단계는 파랑 — 선택이 완료보다 앞선다 */
+  .rail .st.done { background:var(--ok); color:var(--onok); }
+  .rail .st.sel { background:var(--sky); color:var(--onsky); }
+  .rail .st.done u, .rail .st.sel u, .rail .st.done em, .rail .st.sel em { opacity:.75; }
   .detail { border:1px solid var(--edge); border-radius:11px; background:var(--panel2);
     padding:13px 14px; margin-bottom:12px; }
   .detail .dh { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; margin-bottom:6px; }
@@ -2475,8 +2468,8 @@ function App() {
               <button key={st.id} type="button"
                 className={'st' + (step === st.id ? ' sel' : '') + (n ? ' done' : '')}
                 onClick={() => setStep(step === st.id ? null : st.id)}>
-                <u>{n ? '✓' : k + 1}</u>
-                <b>{st.n}</b>
+                <u>{n ? '✓ 완료' : String(k + 1).padStart(2, '0')}</u>
+                {st.n}
                 <em>{n ? n + '큐 적용됨' : st.sub}</em>
               </button>
             );
