@@ -546,6 +546,16 @@ function detectSongs(cues, gap = 32) {
   });
 }
 
+/* 시작 시간 맞추기 — 방송 납품본은 01:00:00,000 부터 시작하는 경우가 있다.
+   'hour' 는 시 단위만 덜어낸다. 01:00:02,400 → 00:00:02,400 으로 앞머리 여백은 지킨다.
+   'zero' 는 첫 큐를 0 으로 당긴다. 앞머리 여백까지 사라져 그만큼 싱크가 앞으로 밀린다. */
+function zeroShift(list, mode) {
+  if (!list.length || !mode || mode === 'none') return 0;
+  const first = list[0].in;
+  if (first <= 0) return 0;
+  return mode === 'hour' ? Math.floor(first / 3600) * 3600 : first;
+}
+
 /* songOn = 번역할 곡 id 집합. 켜져 있어도 `(♪ Music continues)` 같은
    음악 표기 줄은 대사가 아니므로 계속 제외한다. */
 function applyFilters(cues, { dropSFX, songOn, songMap, keepEmpty }) {
@@ -570,6 +580,10 @@ const CLEN = (s) => s.replace(/\s/g,'').length;            // 공백 제외 글�
 const CONN = ['고','서','며','면','니까','지만','는데','아서','어서','으니','다가','거나','도록','려고','까지'];
 const PART = ['은','는','이','가','을','를','에','의','로','와','과','도','만','에서','에게','한테','으로','부터','보다'];
 const BOUND = ['것','게','거','건','걸','겁','수','줄','때','데','뿐','만큼','채','적','지','번째','만한','듯'];
+/* 두 줄을 한 줄로 합칠 때 쉼표를 넣어도 되는 자리 — 절이 끝난 연결어미만 남긴다.
+   CONN 에서 '고·서·면·까지' 를 뺐다. '창고·순서·가면·지금까지' 같은 명사에도 걸려
+   쉼표를 잘못 넣는다. 쉼표를 빠뜨리는 것보다 잘못 넣는 것이 나쁘다. */
+const CONN_COMMA = CONN.filter(c => !['고','서','면','까지'].includes(c));
 // 의존명사 뒤에 조사·서술격이 붙은 것만 인정한다. 이게 없으면 '거대'가 '거'로,
 // '지켜줄게'가 '지'로 잘못 걸린다.
 const JOSA = /^(?:이|가|을|를|은|는|도|만|의|에|로|과|와|야|여|예요|이에요|입니다|이다|다|죠|지|까지|부터|처럼|라도|라고|였|이었|에서|에게)?$|^(?:예요|이에요|입니다|였|이었)/;
@@ -674,6 +688,22 @@ function autoWrap(ko, lim, kind) {
     return out.join('\n');
   }
   if (kind === 'lyric') return ko;                            // 가사는 원문 행 유지
+  /* 한 줄에 들어가면 한 줄로 쓴다. 두 줄은 한 줄에 안 들어갈 때 쓰는 수단이지,
+     의미 단위마다 쓰는 것이 아니다. 짧은 문장이 두 줄로 나뉘어 오면 합친다.
+     합치면 줄바꿈이 하던 절 구분이 사라지므로 연결어미로 끝난 자리에는 쉼표를 넣는다.
+     조사로 끝난 자리는 구 중간이라 넣지 않는다 — '어제 그가 / 여기 왔어' 는
+     '어제 그가 여기 왔어' 이지 '어제 그가, 여기 왔어' 가 아니다.
+     쉼표까지 넣으면 기준을 넘는 경우에는 쉼표 없이 붙여서라도 한 줄로 만든다. */
+  if (lines.length === 2) {
+    const a = lines[0].trim(), b = lines[1].trim();
+    if (a && b) {
+      const done = /[,.!?…·—:;]$/.test(a);
+      const wantComma = !done && CONN_COMMA.some(c => a.endsWith(c));
+      const join = (g) => (a + g + b).replace(/\s+/g, ' ').trim();
+      if (wantComma && CLEN(join(', ')) <= lim) return join(', ');
+      if (CLEN(join(' ')) <= lim) return join(' ');
+    }
+  }
   if (lines.length <= 2 && lines.every(l => CLEN(l) <= lim)) return ko;
   const flat = lines.join(' ').replace(/\s+/g, ' ').trim();
   const best = splitCandidates(flat, lim)[0];
@@ -1218,7 +1248,7 @@ const BYNAME = { fmt:'표기 정리', spot:'타이밍 정리', spell:'맞춤법'
 /* 마무리 작업 — 글자 → 타이밍 → 트랙 → 확인 → 내보내기 순 */
 const STEP_DEFS = [
   { id:'fmt', n:'표기 일괄 정리', k:'BATCH FORMAT', sub:'줄바꿈·부호 정돈',
-    d:'한 줄 기준을 넘으면 어절 경계에서 다시 나누고, 줄 끝에 남은 쉼표와 짝 없는 대사 대시를 지웁니다. 번역문은 건드리지 않습니다.' },
+    d:'한 줄 기준을 넘으면 어절 경계에서 다시 나누고, 두 줄이 한 줄에 들어가면 합칩니다(절이 끝난 자리에는 쉼표를 넣습니다). 줄 끝에 남은 쉼표와 짝 없는 대사 대시도 지웁니다. 번역문은 건드리지 않습니다.' },
   { id:'spell', n:'맞춤법 검사', k:'SPELLCHECK', sub:'Claude 제안 붙임',
     d:'맞춤법·띄어쓰기·오타만 검사합니다. 문장을 고치지 않고 제안으로 붙여 큐마다 따로 받아들일 수 있습니다. API 키가 필요합니다.' },
   { id:'spot', n:'자막 타이밍 정리', k:'RESPOT', sub:'노출 시간 조정',
@@ -1747,6 +1777,7 @@ function App() {
     try { localStorage.setItem('sublab-theme', theme); } catch(e) {}
   }, [theme]);
   const [offset, setOffset] = useState('0');
+  const [zeroMode, setZeroMode] = useState('none');   // 시작 시간 맞추기: none | hour | zero
   const [showRules, setShowRules] = useState(false);
   const [ruleQ, setRuleQ] = useState('');
   const [lim, setLim]       = useState(13);   // 사양서 03: 한 줄 13자 이내 (공백 제외)
@@ -1878,12 +1909,19 @@ function App() {
     const m = {}; songs.forEach(s => s.idx.forEach(i => { m[i] = s.id; })); return m;
   }, [songs]);
 
-  const prepared = useMemo(() => {
+  const filtered = useMemo(() => {
     if (!raw) return [];
     const k = parseFloat(scale) || 1, o = parseFloat(offset) || 0;
     return applyFilters(raw, { dropSFX, songOn, songMap, keepEmpty: mode === 'review' })
       .map(c => ({ ...c, in: c.in*k + o, out: c.out*k + o, ko: '', sugg: null, edited: false }));
   }, [raw, dropSFX, songOn, songMap, scale, offset, mode]);
+
+  /* 첫 큐에서 덜어낼 양. 0 이면 옮기지 않는다. */
+  const zshift = useMemo(() => zeroShift(filtered, zeroMode), [filtered, zeroMode]);
+
+  const prepared = useMemo(() =>
+    zshift ? filtered.map(c => ({ ...c, in: c.in - zshift, out: c.out - zshift })) : filtered,
+    [filtered, zshift]);
 
   const translate = async () => {
     if (!key) { setErr('API 키를 입력하세요.'); return; }
@@ -2167,13 +2205,36 @@ function App() {
   const saveKey = () => { if (!key) return; localStorage.setItem('ak', key); setKeySaved(true); setSaved('API 키 저장됨'); };
   const clearKey = () => { localStorage.removeItem('ak'); setKey(''); setKeySaved(false); setSaved('API 키 지움'); };
 
+  /* 지난 작업 이어서 하기.
+     자동 저장은 하고 있었는데 다시 읽는 곳이 없어서 브라우저를 닫으면 사라졌다.
+     시작할 때 한 번 읽어 두고, 물어본 뒤에 넣는다. 말없이 덮어쓰지 않는다. */
+  const [resume, setResume] = useState(() => {
+    try {
+      const d = JSON.parse(localStorage.getItem('sublab-work') || 'null');
+      return (d && Array.isArray(d.cues) && d.cues.length) ? d : null;
+    } catch (e) { return null; }
+  });
+  const doResume = () => {
+    if (!resume) return;
+    setCues(resume.cues);
+    if (resume.meta) setMeta(resume.meta);
+    if (resume.lim) setLim(resume.lim);
+    if (resume.mode === 'review' || resume.mode === 'translate') setMode(resume.mode);
+    past.current = []; future.current = []; setTick(t => t + 1);
+    setErr(''); setSaved('지난 작업을 이어서 엽니다'); setResume(null);
+  };
+  const dropResume = () => {
+    try { localStorage.removeItem('sublab-work'); } catch (e) {}
+    setResume(null); setSaved('지난 작업을 지웠습니다');
+  };
+
   /* 저장 — 자동(브라우저) + 작업 파일(.sublab.json) */
   const workName = () => (meta.split(' —')[0] || 'subtitle').replace(/\.[^.]+$/, '');
   useEffect(() => {
     if (!cues.length) return;
     const t = setTimeout(() => {
       try {
-        localStorage.setItem('sublab-work', JSON.stringify({ v:1, meta, mode, lim, cues }));
+        localStorage.setItem('sublab-work', JSON.stringify({ v:1, ts: Date.now(), meta, mode, lim, cues }));
         setSaved('자동 저장됨');
       } catch (e) { setSaved('자동 저장 실패 — 용량 초과'); }
     }, 900);
@@ -2257,6 +2318,22 @@ function App() {
           </svg>
         </button>
       </div>
+
+      {resume && !cues.length &&
+        <div className="step" style={{borderColor:'rgba(var(--tint),.25)'}}>
+          <div className="row" style={{alignItems:'center', gap:10, flexWrap:'wrap'}}>
+            <b style={{fontSize:13}}>지난 작업이 남아 있습니다</b>
+            <span className="hint" style={{flex:1, minWidth:180}}>
+              {resume.cues.length}큐
+              {resume.meta ? ' · ' + resume.meta.split(' —')[0] : ''}
+              {resume.mode === 'review' ? ' · 검수' : ' · 번역'}
+              {resume.ts ? ' · ' + new Date(resume.ts).toLocaleString('ko-KR') : ''}
+              <br />자막을 다시 올리지 않고 그대로 이어서 검수할 수 있습니다.
+            </span>
+            <button className="primary" onClick={doResume}>이어서 하기</button>
+            <button className="sm" onClick={dropResume}>버리기</button>
+          </div>
+        </div>}
 
       {screen === 'preview'
         ? <Preview cues={cues} apply={apply} mark={mark} lim={lim} fps={fps} meta={meta} />
@@ -2346,10 +2423,10 @@ function App() {
           )}
         </div>
 
-            {/* 02 전처리 */}
-      {raw && (
+            {/* 02 전처리 — 자막이 없어도 무엇을 정하는 단계인지 보이게 둔다 */}
       <div className="step">
         <h2>02 — 전처리</h2>
+        {!raw ? <p className="hint">01 에서 자막 파일을 올리고 <b>이 자막으로 진행</b>을 누르면 여기서 음향효과 제외 · 프레임레이트 보정 · 시작 시간 맞추기 · 노래 구간을 정합니다.</p> : <>
         <div className="grid g4">
           <label className="f"><span className="cap">음향효과 <em>(Rumbling) 류</em></span>
             <select value={dropSFX?'y':'n'} onChange={e=>setSFX(e.target.value==='y')}>
@@ -2374,6 +2451,12 @@ function App() {
             </select></label>
           <label className="f"><span className="cap">싱크 오프셋 <em>초</em></span>
             <input type="number" step="0.001" value={offset} onChange={e=>setOffset(e.target.value)} /></label>
+          <label className="f"><span className="cap">시작 시간 맞추기 <em>0 부터 시작</em></span>
+            <select value={zeroMode} onChange={e=>setZeroMode(e.target.value)}>
+              <option value="none">없음</option>
+              <option value="hour">정시 오프셋 제거</option>
+              <option value="zero">첫 큐를 0으로</option>
+            </select></label>
           <label className="f"><span className="cap">한 줄 최대 <em>공백 제외</em></span>
             <input type="number" min="6" max="30" value={lim} onChange={e=>setLim(+e.target.value||13)} /></label>
           <label className="f"><span className="cap">원문 언어 <em>자동 감지</em></span>
@@ -2382,7 +2465,11 @@ function App() {
               <option value="zh">중국어</option>
             </select></label>
         </div>
-        <p className="hint">원본 {raw.length}큐 → 번역 대상 <b>{prepared.length}큐</b> (제외 {raw.length - prepared.length}개)</p>
+        <p className="hint">원본 {raw.length}큐 → 번역 대상 <b>{prepared.length}큐</b> (제외 {raw.length - prepared.length}개)
+          {zeroMode !== 'none' && filtered.length > 0 && (zshift > 0
+            ? <> · 시작 {s2t(filtered[0].in)} → <b>{s2t(filtered[0].in - zshift)}</b>
+                {' '}({zshift % 3600 === 0 ? `−${zshift/3600}시간` : `−${zshift.toFixed(3)}초`} 전체 이동)</>
+            : <> · 시작이 {s2t(filtered[0].in)} 이라 옮길 것이 없습니다</>)}</p>
 
         {songs.length > 0 && (
           <div style={{marginTop:14, borderTop:'1px solid rgba(var(--tint),.08)', paddingTop:12}}>
@@ -2411,13 +2498,14 @@ function App() {
             })}
           </div>
         )}
+        </>}
       </div>
-      )}
 
       {/* 03 번역 설정 — 검수 모드에서는 필요 없다 */}
-      {raw && mode === 'translate' && (
+      {mode === 'translate' && (
       <div className="step">
         <h2>03 — 번역 설정</h2>
+        {!raw ? <p className="hint">01 에서 자막을 올리면 여기서 API 키 · 모델 · 번역 지침을 정하고 번역을 시작합니다.</p> : <>
         <div className="grid" style={{gridTemplateColumns:'minmax(240px,2fr) minmax(150px,1fr) minmax(120px,1fr)', marginBottom:14}}>
           <label className="f"><span className="cap">Anthropic API 키 <em>이 브라우저에만 저장</em></span>
             <input type="password" placeholder="sk-ant-..." value={key} onChange={e=>setKey(e.target.value)} /></label>
@@ -2464,13 +2552,14 @@ function App() {
         </div>
         {prog && <div className="bar" style={{marginTop:8}}><i style={{width:`${prog.done/prog.total*100}%`}} /></div>}
         {err && <div className="err">{err}</div>}
+        </>}
       </div>
       )}
 
       {/* 04 검수 */}
-      {cues.length > 0 && (
       <div className="step">
         <h2>04 — 검수 · 수정</h2>
+        {!cues.length ? <p className="hint">번역이나 검수를 시작하면 큐 목록이 여기에 나옵니다. 지난 작업이 있으면 위쪽 <b>이어서 하기</b>로 바로 열 수 있습니다.</p> : <>
         {mode === 'review' && (
           <div className="row" style={{marginBottom:10, alignItems:'center'}}>
             <span style={{fontSize:12, color:'var(--dim2)', whiteSpace:'nowrap'}}>Anthropic API 키</span>
@@ -2693,8 +2782,8 @@ function App() {
             </tbody>
           </table>
         </div>
+        </>}
       </div>
-      )}
       </>}
     </div>
   );
