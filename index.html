@@ -584,6 +584,11 @@ const BOUND = ['것','게','거','건','걸','겁','수','줄','때','데','뿐'
    CONN 에서 '고·서·면·까지' 를 뺐다. '창고·순서·가면·지금까지' 같은 명사에도 걸려
    쉼표를 잘못 넣는다. 쉼표를 빠뜨리는 것보다 잘못 넣는 것이 나쁘다. */
 const CONN_COMMA = CONN.filter(c => !['고','서','면','까지'].includes(c));
+/* 두 줄을 한 줄로 합치는 상한. 한 줄 기준(lim)보다 한 자 낮게 둔다.
+   기준에 딱 맞는 긴 한 줄은 읽기 부담이 커서, 여유가 있을 때만 합친다.
+   lim 이 이보다 낮으면 lim 을 따른다. */
+const MERGE_MAX = 12;
+const mergeLim = (lim) => Math.min(MERGE_MAX, lim);
 // 의존명사 뒤에 조사·서술격이 붙은 것만 인정한다. 이게 없으면 '거대'가 '거'로,
 // '지켜줄게'가 '지'로 잘못 걸린다.
 const JOSA = /^(?:이|가|을|를|은|는|도|만|의|에|로|과|와|야|여|예요|이에요|입니다|이다|다|죠|지|까지|부터|처럼|라도|라고|였|이었|에서|에게)?$|^(?:예요|이에요|입니다|였|이었)/;
@@ -693,15 +698,20 @@ function autoWrap(ko, lim, kind) {
      합치면 줄바꿈이 하던 절 구분이 사라지므로 연결어미로 끝난 자리에는 쉼표를 넣는다.
      조사로 끝난 자리는 구 중간이라 넣지 않는다 — '어제 그가 / 여기 왔어' 는
      '어제 그가 여기 왔어' 이지 '어제 그가, 여기 왔어' 가 아니다.
-     쉼표까지 넣으면 기준을 넘는 경우에는 쉼표 없이 붙여서라도 한 줄로 만든다. */
+     쉼표까지 넣어 상한을 넘으면 두 줄로 둔다 — 쉼표를 버려서 한 줄을 만들지 않는다.
+     상한은 MERGE_MAX(12자) — 한 줄 기준보다 낮게 둔다. */
   if (lines.length === 2) {
     const a = lines[0].trim(), b = lines[1].trim();
     if (a && b) {
       const done = /[,.!?…·—:;]$/.test(a);
       const wantComma = !done && CONN_COMMA.some(c => a.endsWith(c));
       const join = (g) => (a + g + b).replace(/\s+/g, ' ').trim();
-      if (wantComma && CLEN(join(', ')) <= lim) return join(', ');
-      if (CLEN(join(' ')) <= lim) return join(' ');
+      const cap = mergeLim(lim);
+      /* 쉼표가 필요한 자리면 쉼표까지 넣은 길이로 판정한다.
+         쉼표는 절 경계에 필요한 부호라 자리가 없다고 버릴 것이 아니다.
+         한 자가 모자라면 쉼표를 빼고 붙이는 대신 두 줄로 둔다. */
+      const one = wantComma ? join(', ') : join(' ');
+      if (CLEN(one) <= cap) return one;
     }
   }
   if (lines.length <= 2 && lines.every(l => CLEN(l) <= lim)) return ko;
@@ -930,7 +940,7 @@ function inspect(ko, lim, kind, en, dur = 0) {
     if (dur > 0 && dur < SPOT.minDur) w.push(`노출 ${dur.toFixed(2)}초 (최소 ${SPOT.minDur}초)`);
     if (dur > SPOT.durMax) w.push(`노출 ${dur.toFixed(1)}초 (최대 ${SPOT.durMax}초)`);
     if (lines.length === 2) {
-      if (CLEN(lines.join(' ')) <= lim) w.push(`합치면 ${CLEN(lines.join(' '))}자 — 한 줄로`);
+      if (CLEN(lines.join(' ')) <= mergeLim(lim)) w.push(`합치면 ${CLEN(lines.join(' '))}자 — 한 줄로`);
       const aw = lines[0].trim().split(' ').pop(), bw = lines[1].trim().split(' ')[0];
       if (ADV.includes(aw)) w.push(`'${aw}' 부사+용언 분리`);
       else if (/(?:고|어|아)$/.test(aw) && AUX.some(x => bw.startsWith(x)) && CLEN(bw) <= 4) w.push('보조용언 분리');
