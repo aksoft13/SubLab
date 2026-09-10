@@ -124,6 +124,23 @@
   .rulebox { border:1px solid var(--line,var(--edge)); border-radius:8px; background:rgba(148,163,184,.04);
              padding:14px 16px; margin:0 0 12px; }
   .rulehead { font-size:13px; margin-bottom:10px; }
+  /* 맞춤법 검토 패널 — 걸린 큐만 타임코드와 함께 모아 본다 */
+  .spellbox { max-height:340px; overflow-y:auto; border:1px solid var(--line,var(--edge));
+              border-radius:6px; background:rgba(148,163,184,.03); }
+  .spellrow { display:flex; align-items:flex-start; gap:9px; padding:7px 9px;
+              border-bottom:1px solid rgba(148,163,184,.10); font-size:12.5px; }
+  .spellrow:last-child { border-bottom:0; }
+  .spelltc { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+             padding:2px 6px; font-size:11px; line-height:1.25; cursor:pointer;
+             background:transparent; border:1px solid rgba(148,163,184,.22); border-radius:4px; }
+  .spelltc span { color:var(--dim2); font-variant-numeric:tabular-nums; }
+  .spelltc:hover { border-color:rgba(56,189,248,.55); }
+  .spellwhy { flex:0 0 auto; min-width:74px; color:var(--warn); font-size:11.5px; padding-top:3px; }
+  .spelltxt { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .spelltxt s { color:var(--dim3); text-decoration-color:rgba(148,163,184,.5); }
+  .spelltxt b { color:var(--fg); font-weight:600; }
+  .spellact { flex:0 0 auto; display:flex; gap:4px; padding-top:1px; }
+  .spellact button { font-size:11.5px; padding:3px 9px; }
   .rulehead b { color:var(--warn); font-size:15px; }
   .rulehead em { font-style:normal; color:var(--dim2); font-size:12px; }
   .rulegrid { display:flex; flex-wrap:wrap; gap:7px; }
@@ -1434,7 +1451,7 @@ function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols,
   const [editing, setEditing] = useState(false);
   const warns = inspect(c.ko || '', lim, c.kind, c.en || '', c.out - c.in);
   return (
-    <tr className={warns.length ? 'sus' : ''} style={c.edited ? { outline:'1px solid rgba(56,189,248,.25)', outlineOffset:'-1px' } : undefined}>
+    <tr id={'cue-' + i} className={warns.length ? 'sus' : ''} style={c.edited ? { outline:'1px solid rgba(56,189,248,.25)', outlineOffset:'-1px' } : undefined}>
       <td className="idx">{i+1}{c.kind==='lyric' && <div style={{color:'var(--lyric)',fontSize:12}}>♪</div>}</td>
       <td className="tc">
         {c.tin0 !== undefined && <><s>{s2t(c.tin0)}</s><s>{s2t(c.tout0)}</s></>}
@@ -1956,6 +1973,7 @@ function App() {
   useEffect(() => { try { localStorage.setItem('sublab-expfmt', expFmt); } catch (e) {} }, [expFmt]);
   const [showRules, setShowRules] = useState(false);
   const [ruleQ, setRuleQ] = useState('');
+  const [showSpell, setShowSpell] = useState(false);   // 맞춤법 결과 검토 패널
   const [lim, setLim]       = useState(13);   // 사양서 03: 한 줄 13자 이내 (공백 제외)
   const [key, setKey]       = useState(localStorage.getItem('ak') || '');
   const [model, setModel]   = useState('claude-opus-5');
@@ -2255,6 +2273,7 @@ function App() {
       }
       localStorage.setItem('ak', key);
       setErr(hit ? '' : '맞춤법 문제를 찾지 못했습니다.');
+      setShowSpell(hit > 0);   // 걸린 게 있으면 바로 검토 패널을 편다
     } catch (e) { setErr('맞춤법 검사 중단: ' + e.message); }
     setBusy(false);
   };
@@ -2829,6 +2848,10 @@ function App() {
                 <span style={{flex:1}} />
                 {st.read && <span style={{fontSize:11.5, color:'var(--dim2)'}}>읽기 전용 — 자막을 바꾸지 않습니다</span>}
                 {st.id === 'spell' && cues.some(c => c.spell) &&
+                  <button title="걸린 큐를 타임코드와 함께 모아 봅니다"
+                    onClick={() => setShowSpell(v => !v)}>
+                    {showSpell ? '검토 패널 닫기' : `검토 패널 열기 · ${cues.filter(c => c.spell).length}건`}</button>}
+                {st.id === 'spell' && cues.some(c => c.spell) &&
                   <button title="맞춤법 제안을 모두 적용합니다"
                     onClick={() => apply(prev => prev.map(c =>
                       c.spell ? mark(c, { ko: c.spell.ko, spell: null }, 'spell') : c))}>
@@ -2937,6 +2960,46 @@ function App() {
             <span className="msg">갈래로 걸러 보려면 <b>의심</b>을, 무엇이 바뀌었는지 보려면 <b>수정됨</b>을 누르세요.</span>
           )}
         </div>
+        {showSpell && cues.some(c => c.spell) && (
+          <div className="rulebox">
+            <div className="rulehead">
+              맞춤법 제안 — <b>{cues.filter(c => c.spell).length}</b>건
+              <em> · 타임코드를 눌러 해당 큐로 갑니다. 하나씩 정하거나 아래에서 한꺼번에 처리하세요</em>
+            </div>
+            <div className="spellbox">
+              {cues.map((c, i) => [c, i]).filter(([c]) => c.spell).map(([c, i]) => (
+                <div key={i} className="spellrow">
+                  <button className="spelltc" title="이 큐로 이동"
+                    onClick={() => { setFilter('all'); setRuleQ('');
+                      const el = document.getElementById('cue-' + i);
+                      if (el) el.scrollIntoView({ behavior:'smooth', block:'center' }); }}>
+                    #{i+1}<span>{s2t(c.in).slice(0, 8)}</span></button>
+                  <span className="spellwhy">{c.spell.why}</span>
+                  <div className="spelltxt">
+                    <s>{(c.ko || '').replace(/\n/g, ' / ')}</s>
+                    <b>{c.spell.ko.replace(/\n/g, ' / ')}</b>
+                  </div>
+                  <span className="spellact">
+                    <button onClick={() => apply(prev => prev.map((x, k) =>
+                      k === i ? mark(x, { ko: x.spell.ko, spell: null }, 'spell') : x))}>적용</button>
+                    <button onClick={() => setCues(prev => prev.map((x, k) =>
+                      k === i ? { ...x, spell: null } : x))}>넘김</button>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="row" style={{marginTop:10}}>
+              <button className="primary" onClick={() => apply(prev => prev.map(c =>
+                c.spell ? mark(c, { ko: c.spell.ko, spell: null }, 'spell') : c))}>
+                남은 {cues.filter(c => c.spell).length}건 모두 적용</button>
+              <button onClick={() => setCues(prev => prev.map(c =>
+                c.spell ? { ...c, spell: null } : c))}>모두 넘김</button>
+              <span style={{flex:1}} />
+              <button onClick={() => setShowSpell(false)}>패널 닫기</button>
+            </div>
+          </div>
+        )}
+
         {showRules && (
           <div className="rulebox">
             <div className="rulehead">
