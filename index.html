@@ -496,8 +496,12 @@ function csvRows(text) {
     const ch = s[i];
     if (q) {
       if (ch === '"') { if (s[i+1] === '"') { f += '"'; i++; } else q = false; }
+      // 따옴표 안의 단독 CR 은 한 자막 안의 줄바꿈이다. 엑셀에서 Alt+Enter 로 넣은 것이
+      // 이렇게 저장된다. 프리미어 텍스트 내보내기와 같은 규칙이다.
+      else if (ch === '\r') f += '\n';
       else f += ch;
     }
+    else if (ch === '\r') { row.push(f); f = ''; rows.push(row); row = []; }   // 옛 맥 CSV 의 행 구분
     else if (ch === '"') q = true;
     else if (ch === ',') { row.push(f); f = ''; }
     else if (ch === '\n') { row.push(f); f = ''; rows.push(row); row = []; }
@@ -550,7 +554,8 @@ const CSVH = {
 };
 function parseCSV(text, fps) {
   const rows = csvRows(text);
-  if (!rows.length) return [];
+  if (!rows.length) return { cues: [], tc: false };
+  let frames = false;   // 시간 칸이 프레임 표기였는가 — fps 선택기를 띄울지 정한다
   let head = null, body = rows;
   const first = rows[0].map(x => x.trim());
   if (first.some(x => CSVH.in.test(x)) && first.some(x => CSVH.out.test(x))) {
@@ -570,6 +575,7 @@ function parseCSV(text, fps) {
     if (ii === undefined || oi === undefined || ii < 0 || oi < 0) continue;
     const a = csvTime(r[ii], fps), b = csvTime(r[oi], fps);
     if (a === null || b === null || b <= a) continue;
+    if (/^\d{1,2}:\d{2}:\d{2}[:;]\d{1,2}$/.test(String(r[ii]).trim())) frames = true;
     let txt = '';
     if (head) {
       // 한글 칸이 있으면 그쪽이 작업 대상이다. 없으면 원문을 쓴다.
@@ -583,7 +589,7 @@ function parseCSV(text, fps) {
     }
     out.push({ in: a, out: b, en: txt.trim() });
   }
-  return out;
+  return { cues: out, tc: frames };
 }
 
 /* 확장자가 .csv 가 아니어도 내용으로 알아본다. 프레임 TC 판정을 먼저 통과시킨 뒤에만 부른다 —
@@ -1949,7 +1955,9 @@ function App() {
         } else {
           const txt = decodeText(buf);
           if (/\.csv$/i.test(file.name)) {            // 스프레드시트
-            cues = parseCSV(txt, fps); info = 'CSV';
+            const r = parseCSV(txt, fps);
+            cues = r.cues; tc = r.tc;
+            info = r.tc ? `CSV · 프레임 TC · ${fps.replace('df',' DF')}` : 'CSV';
           } else if (isFrameTC(txt)) {                 // 프리미어 텍스트 내보내기
             const use = isDropFrame(txt) ? '29.97df' : fps;   // 세미콜론이면 드롭프레임
             if (use !== fps) setFps(use);
@@ -1958,7 +1966,9 @@ function App() {
             fam = r.ms ? null : fpsFamily(r.maxF, isDropFrame(txt));
             info = r.ms ? '이미 SRT' : `프레임 TC · ${use.replace('df',' DF')}`;
           } else if (isCSV(txt)) {                     // 확장자가 달라도 내용이 CSV 면
-            cues = parseCSV(txt, fps); info = 'CSV';
+            const r = parseCSV(txt, fps);
+            cues = r.cues; tc = r.tc;
+            info = r.tc ? `CSV · 프레임 TC · ${fps.replace('df',' DF')}` : 'CSV';
           } else { cues = parseSRT(txt); info = 'SRT'; }
         }
         if (!cues.length) throw new Error('큐를 읽지 못했습니다');
@@ -2031,7 +2041,7 @@ function App() {
       const buf = await file.arrayBuffer();
       const txt2 = /\.stl$/i.test(file.name) ? null : decodeText(buf);
       const parsed = /\.stl$/i.test(file.name) ? parseSTL(buf).cues
-                   : (/\.csv$/i.test(file.name) || isCSV(txt2)) ? parseCSV(txt2, fps)
+                   : (/\.csv$/i.test(file.name) || isCSV(txt2)) ? parseCSV(txt2, fps).cues
                    : parseSRT(txt2);
       if (!parsed.length) throw new Error('큐를 읽지 못했습니다');
       const label = file.name.replace(/\.[^.]+$/, '').slice(0, 14);
