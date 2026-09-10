@@ -428,7 +428,9 @@ function isFrameTC(text) {
 }
 /* 마지막 자리가 60 이상이면 프레임일 수 없다 → 밀리초 */
 function tcIsMs(rows) {
-  return rows.some(r => +r[4] > 59 || +r[8] > 59);
+  // 프레임은 두 자리를 넘지 않는다. 세 자리면 밀리초다.
+  // 60 이상인 값이 하나도 없는 파일(전부 ,000 같은)도 이것으로 걸러진다.
+  return rows.some(r => r[4].length === 3 || r[8].length === 3 || +r[4] > 59 || +r[8] > 59);
 }
 function parseFrameTC(text, fps) {
   const rate = RATES[fps] || RATES['23.976'];
@@ -483,6 +485,115 @@ function fpsFamily(maxF, df) {
 const DIA = { 0xC1:'̀', 0xC2:'́', 0xC3:'̂', 0xC4:'̃', 0xC5:'̄',
               0xC6:'̆', 0xC7:'̇', 0xC8:'̈', 0xCA:'̊', 0xCB:'̧',
               0xCD:'̋', 0xCE:'̨', 0xCF:'̌' };
+
+/* ── CSV ─────────────────────────────────────────────────────
+   스프레드시트로 자막을 주고받는 곳이 있다. 번역 업체가 엑셀로 보내오기도 한다.
+   쉼표·따옴표·줄바꿈이 든 칸을 제대로 읽어야 두 줄 자막이 안 깨진다. RFC 4180. */
+function csvRows(text) {
+  const s = text.replace(/\r\n/g, '\n');
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (q) {
+      if (ch === '"') { if (s[i+1] === '"') { f += '"'; i++; } else q = false; }
+      else f += ch;
+    }
+    else if (ch === '"') q = true;
+    else if (ch === ',') { row.push(f); f = ''; }
+    else if (ch === '\n') { row.push(f); f = ''; rows.push(row); row = []; }
+    else f += ch;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim() !== '')).map(fixSplitTC);
+}
+
+/* 00:00:01,000 은 쉼표가 들어 있어서, 따옴표 없이 저장된 CSV 에서는
+   '00:00:01' 과 '000' 두 칸으로 쪼개진다. 엑셀에서 대충 뽑은 파일이 이렇게 온다.
+   시:분:초 칸 바로 뒤에 세 자리 이하 숫자만 있는 칸이 오면 되붙인다. */
+function fixSplitTC(row) {
+  const out = [];
+  for (let i = 0; i < row.length; i++) {
+    const a = (row[i] || '').trim(), b = (row[i+1] || '').trim();
+    if (/^\d{1,2}:\d{2}:\d{2}$/.test(a) && /^\d{1,3}$/.test(b)) { out.push(a + ',' + b); i++; }
+    else out.push(row[i]);
+  }
+  return out;
+}
+
+/* 시간 칸 — 00:00:01,000 · 00:00:01.000 · 00:00:01:12(프레임) · 1:23 · 초 단위 숫자 */
+function csvTime(v, fps) {
+  const t = String(v == null ? '' : v).trim();
+  if (!t) return null;
+  let m = t.match(/^(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})$/);
+  if (m) return +m[1]*3600 + +m[2]*60 + +m[3] + +(m[4].padEnd(3,'0'))/1000;
+  m = t.match(/^(\d{1,2}):(\d{2}):(\d{2})[:;](\d{1,3})$/);
+  if (m) {
+    if (m[4].length === 3 || +m[4] > 59) return +m[1]*3600 + +m[2]*60 + +m[3] + +(m[4].padEnd(3,'0'))/1000;
+    const r = RATES[fps] || RATES['23.976'];
+    return ((+m[1]*3600 + +m[2]*60 + +m[3]) * r.base + +m[4]) / r.real;
+  }
+  m = t.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (m) return +m[1]*3600 + +m[2]*60 + +m[3];
+  m = t.match(/^(\d{1,3}):(\d{2})$/);
+  if (m) return +m[1]*60 + +m[2];
+  if (/^\d+(\.\d+)?$/.test(t)) return parseFloat(t);
+  return null;
+}
+
+/* 머리글이 있으면 이름으로 칸을 찾고, 없으면 시간처럼 생긴 칸 두 개를 기준으로 잡는다.
+   번호 칸이 맨 앞에 붙어 오는 경우가 흔해서 순서만으로 정하지 않는다. */
+const CSVH = {
+  in:  /^(start|시작|인점|in|시작\s*시간|start\s*time|begin|timecode\s*in)$/i,
+  out: /^(end|종료|아웃점|out|종료\s*시간|end\s*time|finish|timecode\s*out)$/i,
+  en:  /^(원문|영문|중문|english|chinese|source|original)$/i,
+  ko:  /^(자막|한글|한글자막|번역|번역문|korean|ko|text|subtitle|대사|내용)$/i,
+};
+function parseCSV(text, fps) {
+  const rows = csvRows(text);
+  if (!rows.length) return [];
+  let head = null, body = rows;
+  const first = rows[0].map(x => x.trim());
+  if (first.some(x => CSVH.in.test(x)) && first.some(x => CSVH.out.test(x))) {
+    head = {};
+    first.forEach((h, i) => { for (const k of ['in','out','en','ko'])
+      if (head[k] === undefined && CSVH[k].test(h)) head[k] = i; });
+    body = rows.slice(1);
+  }
+  const out = [];
+  for (const r of body) {
+    let ii, oi;
+    if (head) { ii = head.in; oi = head.out; }
+    else {
+      ii = r.findIndex(v => csvTime(v, fps) !== null);
+      oi = ii < 0 ? -1 : r.findIndex((v, k) => k > ii && csvTime(v, fps) !== null);
+    }
+    if (ii === undefined || oi === undefined || ii < 0 || oi < 0) continue;
+    const a = csvTime(r[ii], fps), b = csvTime(r[oi], fps);
+    if (a === null || b === null || b <= a) continue;
+    let txt = '';
+    if (head) {
+      // 한글 칸이 있으면 그쪽이 작업 대상이다. 없으면 원문을 쓴다.
+      txt = (head.ko !== undefined ? r[head.ko] : '') || (head.en !== undefined ? r[head.en] : '') || '';
+    }
+    if (!txt.trim()) {
+      // 번호 칸(숫자만)은 버리고 남은 첫 글자 칸을 쓴다
+      txt = r.filter((_, k) => k !== ii && k !== oi)
+             .map(x => (x||'').trim())
+             .find(x => x && !/^\d+$/.test(x)) || '';
+    }
+    out.push({ in: a, out: b, en: txt.trim() });
+  }
+  return out;
+}
+
+/* 확장자가 .csv 가 아니어도 내용으로 알아본다. 프레임 TC 판정을 먼저 통과시킨 뒤에만 부른다 —
+   '00:00:01,000 - 00:00:03,500' 같은 줄도 쉼표가 둘이라 CSV 로 오인될 수 있다. */
+function isCSV(text) {
+  const lines = text.replace(/\r\n/g,'\n').split('\n').filter(l => l.trim()).slice(0, 20);
+  if (!lines.length || lines.some(l => l.includes('-->'))) return false;
+  const wide = lines.filter(l => (l.match(/,/g) || []).length >= 2).length;
+  return wide >= Math.max(2, Math.ceil(lines.length * 0.7));
+}
 
 function parseSTL(buf) {
   const b = new Uint8Array(buf);
@@ -1269,8 +1380,8 @@ const STEP_DEFS = [
     cau:'넉넉하게 잡으므로 대사와 실제로 겹치는 것만 남기고 나머지는 되돌려 주세요.' },
   { id:'rule', n:'표기 검수', k:'RULE AUDIT', sub:'규칙별 건수 확인', read:true,
     d:'고쳐 주지 않습니다. 보기만 바꿉니다. 표기 규칙별로 몇 건이 걸렸는지 모아 보는 패널을 폈다 접습니다.' },
-  { id:'dl', n:'한글 SRT 내려받기', k:'EXPORT', sub:'납품 파일 저장', fin:true,
-    d:'본편과 서브를 각각 SRT로 저장합니다. 앞 단계가 모두 끝난 뒤 마지막에 누릅니다.' },
+  { id:'dl', n:'한글 자막 내려받기', k:'EXPORT', sub:'납품 파일 저장', fin:true,
+    d:'본편과 서브를 각각 저장합니다. 형식은 SRT(납품 표준) · TXT(타임코드 + 자막) · CSV(원문까지 함께, 스프레드시트 검토용) 중에 고릅니다. 앞 단계가 모두 끝난 뒤 마지막에 누릅니다.' },
 ];
 function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols, showWas, showEn }) {
   const [editing, setEditing] = useState(false);
@@ -1791,6 +1902,11 @@ function App() {
   }, [theme]);
   const [offset, setOffset] = useState('0');
   const [zeroMode, setZeroMode] = useState('none');   // 시작 시간 맞추기: none | hour | zero
+  const [expFmt, setExpFmt] = useState(() => {       // 내려받을 형식: srt | txt | csv
+    try { const v = localStorage.getItem('sublab-expfmt'); if (v === 'srt' || v === 'txt' || v === 'csv') return v; } catch (e) {}
+    return 'srt';
+  });
+  useEffect(() => { try { localStorage.setItem('sublab-expfmt', expFmt); } catch (e) {} }, [expFmt]);
   const [showRules, setShowRules] = useState(false);
   const [ruleQ, setRuleQ] = useState('');
   const [lim, setLim]       = useState(13);   // 사양서 03: 한 줄 13자 이내 (공백 제외)
@@ -1832,13 +1948,17 @@ function App() {
           const r = parseSTL(buf); cues = r.cues; info = `STL · ${r.fps.toFixed(3)}fps`;
         } else {
           const txt = decodeText(buf);
-          if (isFrameTC(txt)) {                       // 프리미어 텍스트 내보내기
+          if (/\.csv$/i.test(file.name)) {            // 스프레드시트
+            cues = parseCSV(txt, fps); info = 'CSV';
+          } else if (isFrameTC(txt)) {                 // 프리미어 텍스트 내보내기
             const use = isDropFrame(txt) ? '29.97df' : fps;   // 세미콜론이면 드롭프레임
             if (use !== fps) setFps(use);
             const r = parseFrameTC(txt, use);
             cues = r.cues; tc = !r.ms;
             fam = r.ms ? null : fpsFamily(r.maxF, isDropFrame(txt));
             info = r.ms ? '이미 SRT' : `프레임 TC · ${use.replace('df',' DF')}`;
+          } else if (isCSV(txt)) {                     // 확장자가 달라도 내용이 CSV 면
+            cues = parseCSV(txt, fps); info = 'CSV';
           } else { cues = parseSRT(txt); info = 'SRT'; }
         }
         if (!cues.length) throw new Error('큐를 읽지 못했습니다');
@@ -1909,7 +2029,10 @@ function App() {
   const readRef = async (file) => {
     try {
       const buf = await file.arrayBuffer();
-      const parsed = /\.stl$/i.test(file.name) ? parseSTL(buf).cues : parseSRT(decodeText(buf));
+      const txt2 = /\.stl$/i.test(file.name) ? null : decodeText(buf);
+      const parsed = /\.stl$/i.test(file.name) ? parseSTL(buf).cues
+                   : (/\.csv$/i.test(file.name) || isCSV(txt2)) ? parseCSV(txt2, fps)
+                   : parseSRT(txt2);
       if (!parsed.length) throw new Error('큐를 읽지 못했습니다');
       const label = file.name.replace(/\.[^.]+$/, '').slice(0, 14);
       setRefs(prev => prev.some(r => r.label === label) ? prev : [...prev, { label, cues: parsed }]);
@@ -2274,15 +2397,29 @@ function App() {
     r.readAsText(file);
   };
 
+  /* 내보내기 — 세 형식 모두 이 앱이 다시 읽을 수 있는 모양으로 쓴다.
+     srt 납품 표준 · txt 프리미어 텍스트와 같은 꼴 · csv 스프레드시트 검토용
+     세 형식 다 BOM 을 붙인다. 엑셀은 BOM 이 없으면 한글을 깬다. */
+  const csvCell = (v) => { const t = String(v == null ? '' : v);
+    return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const BUILD = {
+    srt: (list) => list.map((c, i) => `${i+1}\n${s2t(c.in)} --> ${s2t(c.out)}\n${c.ko}\n`).join('\n'),
+    txt: (list) => list.map(c => `${s2t(c.in)} - ${s2t(c.out)}\n${c.ko}\n`).join('\n'),
+    csv: (list) => ['번호,시작,종료,원문,한글자막']
+      .concat(list.map((c, i) =>
+        [i+1, s2t(c.in), s2t(c.out), c.en || '', c.ko || ''].map(csvCell).join(',')))
+      .join('\r\n') + '\r\n',
+  };
   const download = () => {
     const base = (meta.split(' —')[0] || 'subtitle').replace(/\.[^.]+$/, '');
     const save = (list, suffix) => {
       if (!list.length) return;
-      const body = list.map((c, i) => `${i+1}\n${s2t(c.in)} --> ${s2t(c.out)}\n${c.ko}\n`).join('\n');
-      const blob = new Blob(['﻿' + body], { type: 'text/plain;charset=utf-8' });
+      const body = (BUILD[expFmt] || BUILD.srt)(list);
+      const blob = new Blob(['﻿' + body], {
+        type: (expFmt === 'csv' ? 'text/csv' : 'text/plain') + ';charset=utf-8' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = base + suffix + '.srt';
+      a.download = base + suffix + '.' + expFmt;
       a.click(); URL.revokeObjectURL(a.href);
     };
     const on = cues.filter(c => (c.ko||'').trim());
@@ -2363,10 +2500,10 @@ function App() {
             <div style={{fontSize:15, fontWeight:600}}>자막 파일을 끌어다 놓으세요 · 여러 개 한꺼번에</div>
             <div className="hint" style={{marginTop:6}}>
               해외 자막(중국어·영어) · 프리미어 텍스트 · 번역 업체 한글본 — 있는 대로 모두 넣으세요<br/>
-              SRT · STL · 프리미어 TXT · UTF-8 / UTF-16 / CP949 자동 판별
+              SRT · STL · CSV · 프리미어 TXT · UTF-8 / UTF-16 / CP949 자동 판별
             </div>
           </div>
-          <input id="pick" type="file" accept=".srt,.stl,.txt" hidden multiple
+          <input id="pick" type="file" accept=".srt,.stl,.txt,.csv" hidden multiple
                  onChange={(e) => { if (e.target.files.length) readAll(e.target.files); e.target.value=''; }} />
 
           {files.length > 0 && (
@@ -2589,7 +2726,7 @@ function App() {
         )}
         {mode === 'review' && err && <div className="err" style={{marginBottom:10}}>{err}</div>}
         <div className="row" style={{marginBottom:10}}>
-          <input id="refpick" type="file" accept=".srt,.stl,.txt" hidden multiple
+          <input id="refpick" type="file" accept=".srt,.stl,.txt,.csv" hidden multiple
             onChange={e => { [...e.target.files].forEach(readRef); e.target.value=''; }} />
           <button title="중문 원본이나 업체 납품 자막을 불러와 나란히 비교합니다 (여러 개 가능)"
             onClick={() => document.getElementById('refpick').click()}>참고 자막 불러오기</button>
@@ -2655,11 +2792,18 @@ function App() {
                   }))}>♪ 모두 제거</button>}
                 {!st.read && done > 0 &&
                   <button onClick={() => revertBy(st.id)}>이 작업 전부 취소</button>}
+                {st.id === 'dl' &&
+                  <select value={expFmt} onChange={e => setExpFmt(e.target.value)}
+                          title="내려받을 파일 형식" style={{marginRight:4}}>
+                    <option value="srt">SRT</option>
+                    <option value="txt">TXT</option>
+                    <option value="csv">CSV</option>
+                  </select>}
                 <button className={st.fin ? 'primary' : ''}
                   disabled={st.id === 'spell' && busy}
                   onClick={() => runStep(st.id)}>
                   {st.id === 'rule' ? (showRules ? '패널 닫기' : '패널 열기')
-                    : st.id === 'dl' ? '내려받기'
+                    : st.id === 'dl' ? expFmt.toUpperCase() + ' 내려받기'
                     : st.id === 'spell' ? (busy ? '검사 중…' : '검사 실행')
                     : tg ? `실행 · ${tg}큐` : '대상 없음'}
                 </button>
