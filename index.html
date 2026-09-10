@@ -736,14 +736,26 @@ const ADNW = new Set(('붉은 검은 흰 푸른 노란 파란 작은 큰 좋은 
  '진짜 가짜 유일한 순수한 완전한 거대한').split(' '));
 const isAdn = (w) => ADNW.has(w) || (w.length >= 2 && /(?:한|운|던)$/.test(w));
 
-function splitCandidates(text, lim) {
+/* 품사 태그로 보는 판정. 글자 끝 비교는 '창고'의 '고'를 연결어미로 보지만
+   태그는 NNG 와 VV+EC 를 구별한다. pos 는 같은 문자열에서 뽑은 것만 쓴다. */
+const P_CONN = /EC$/;                 // 연결어미로 끝남
+const P_PART = /J[A-Z]{1,2}$/;        // 조사로 끝남
+const P_BOUND = /^NNB/;               // 의존명사로 시작
+const P_ADN = /(?:^MM|ETM$)/;         // 관형사 · 관형형 전성어미
+const P_ADV = /^MA/;                  // 부사
+const P_AUX = /^VX/;                  // 보조용언
+
+function splitCandidates(text, lim, pos) {
   const w = text.split(' ');
   if (w.length === 1) return [[text]];
+  const P = (pos && pos.t === text && pos.w && pos.w.length === w.length) ? pos.w : null;
   const cands = [];
   for (let i = 1; i < w.length; i++) {
     const a = w.slice(0,i).join(' '), b = w.slice(i).join(' ');
     const la = a.replace(/\s+$/,'');
+    const at = P ? P[i-1] : null, bt = P ? P[i] : null;
     const end = /[.!?]$/.test(la) ? 'sent' : /,$/.test(la) ? 'comma'
+      : at ? (P_CONN.test(at) ? 'conn' : P_PART.test(at) ? 'part' : 'none')
       : CONN.some(c => la.endsWith(c)) ? 'conn' : PART.some(p => la.endsWith(p)) ? 'part' : 'none';
     const fits = CLEN(a) <= lim && CLEN(b) <= lim;
     // 길이를 못 맞추는 경우엔 균형보다 의미 경계를 더 존중한다
@@ -752,11 +764,12 @@ function splitCandidates(text, lim) {
     // hard = 문법 결합을 깨는 분할. 다른 후보가 있으면 절대 제시하지 않는다.
     const bw = b.split(' ')[0], aw = la.split(' ').pop();
     let hard = false;
-    if (BOUND.some(x => bw.startsWith(x))) hard = true;                       // 의존명사 앞
-    if (isAdn(aw)) hard = true;                                               // 관형어 + 체언
-    if (isAdn(bw)) s -= 25;                    // 2행이 관형어로 시작 = 새 구가 열리는 자연스러운 경계
-    if (ADV.includes(aw)) hard = true;                                        // 부사 + 용언
-    if (/(?:고|어|아)$/.test(aw) && AUX.some(x => bw.startsWith(x)) && CLEN(bw) <= 4) hard = true; // 보조용언
+    if (bt ? P_BOUND.test(bt) : BOUND.some(x => bw.startsWith(x))) hard = true;   // 의존명사 앞
+    if (at ? P_ADN.test(at) : isAdn(aw)) hard = true;                            // 관형어 + 체언
+    if (bt ? P_ADN.test(bt) : isAdn(bw)) s -= 25;   // 2행이 관형어로 시작 = 자연스러운 경계
+    if (at ? P_ADV.test(at) : ADV.includes(aw)) hard = true;                     // 부사 + 용언
+    if (bt ? P_AUX.test(bt)                                                      // 보조용언
+           : (/(?:고|어|아)$/.test(aw) && AUX.some(x => bw.startsWith(x)) && CLEN(bw) <= 4)) hard = true;
     if (CLEN(a) <= 2 || CLEN(b) <= 2) hard = true;                            // 2자 이하 줄
     cands.push({ fits, hard, s, a, b });
   }
@@ -815,7 +828,7 @@ function autoFix(ko) {
 
 /* 길이 초과 시 자동 줄바꿈. 깨끗한 분할이 있을 때만 적용하고,
    모든 분할이 문법 결합을 깨면 손대지 않고 의심 목록으로 넘긴다. */
-function autoWrap(ko, lim, kind) {
+function autoWrap(ko, lim, kind, pos) {
   const lines = ko.split('\n');
   if (lines.some(l => l.trim().startsWith('-'))) {            // 2인 대사: 화자별 한 줄로 병합
     const out = [];
@@ -850,13 +863,13 @@ function autoWrap(ko, lim, kind) {
   }
   if (lines.length <= 2 && lines.every(l => CLEN(l) <= lim)) return ko;
   const flat = lines.join(' ').replace(/\s+/g, ' ').trim();
-  const best = splitCandidates(flat, lim)[0];
+  const best = splitCandidates(flat, lim, pos)[0];
   return best ? best.join('\n') : ko;
 }
 
 /* 모델 응답 → 최종 자막. ⏎ 정리 → ♪ 처리 → 자동 줄바꿈 → 규칙 자동수정 */
-function finalize(raw, { keepNote, lim, kind }) {
-  return autoFix(autoWrap(autoFix(stripNote(unmark(raw), keepNote)), lim, kind), lim);
+function finalize(raw, { keepNote, lim, kind, pos }) {
+  return autoFix(autoWrap(autoFix(stripNote(unmark(raw), keepNote)), lim, kind, pos), lim);
 }
 
 /* 병합 가능 판정 — 문장이 끝난 자리에서는 묶지 않는다.
@@ -898,11 +911,11 @@ function respot(cues, lim) {
       && !/^\s*-/.test(p.ko) && !/^\s*-/.test(c.ko)
       && CLEN(joint) <= SPOT.chars
       && dur > 0 && CLEN(joint) / dur <= SPOT.cps
-      && autoWrap(joint, lim, c.kind).split('\n').length <= 2;
+      && autoWrap(joint, lim, c.kind).split('\n').length <= 2;   // 병합문은 pos 가 없다
     if (ok) { p.out = c.out; p.ko = joint; p.en = (p.en + ' ' + c.en).trim(); }
     else out.push({ ...c });
   }
-  for (const c of out) if (c.kind !== 'lyric') c.ko = autoFix(autoWrap(c.ko, lim, c.kind));
+  for (const c of out) if (c.kind !== 'lyric') c.ko = autoFix(autoWrap(c.ko, lim, c.kind, c.pos));
   // 체이닝 — 다음 큐가 시작할 때까지 붙잡는다. 표시시간을 버는 핵심 단계.
   // 다만 글자 수에 맞는 만큼만 붙잡는다. 세 글자를 3초 띄우면 화면이 멈춘 것처럼 보인다.
   out.forEach((c, i) => {
@@ -1337,6 +1350,117 @@ ${notes ? `\n[작품 메모]\n${notes}` : ''}
 - ko 안의 줄바꿈은 실제 개행으로 쓴다. ⏎ 기호는 결과에 절대 쓰지 마라.`;
 }
 
+/* ── 바른AI 띄어쓰기 검사 ─────────────────────────────────────
+   SPACING 교정만 받는다. 실측으로 정한 것이다.
+     TYPO     고유명사를 망가뜨린다 — 디에고→지에코 · 멜리나→엘리나 · 어떻해→어떻게
+     GRAMMER  자막에 쓰지 않는 마침표를 붙인다 — 갔다→갔다.
+     STANDARD 웬지→왠지 류. 이 앱의 규칙 검사가 이미 잡는다
+   띄어쓰기는 반대로 바른AI 가 압도적이다. 보조용언·의존명사를 규정대로 처리한다.
+   CORS 가 열려 있어(allow-origin *) 브라우저에서 바로 부른다. 키는 사용자 것을 쓴다. */
+const BAREUN_URL = 'https://api.bareun.ai/bareun.RevisionService/CorrectError';
+const CTRL = new RegExp('[\\u0000-\\u001F]', 'g');
+
+/* 실측으로 걸러낸 helpId.
+     맞춤법_보조용언   보여드렸죠 → 보여 드렸죠 · 설명해줄게요 → 설명해 줄게요   믿을 만하다
+     띄어쓰기_공통     25번가 → 25번 가 · 탈취제도 → 탈취 제도                 자막을 망친다
+     붙여쓰기_접미사_용언  확인 먼저 해 → 확인 먼저해                          거꾸로 붙인다
+     붙여쓰기_등재된용언   뭐 하는 → 뭐하는                                    원칙과 반대다
+   그래서 기본값은 보조용언만이다. 전부 받고 싶으면 화면에서 바꾼다. */
+const SPACE_SAFE = /보조용언/;
+
+/* 자막에는 <i> 가 들어 있고 검사기가 이것을 글자로 보고 '</ i>' 로 깨뜨린다.
+   줄 전체를 감싼 형태만 벗겨서 검사하고 되돌린다. 그 밖의 태그가 섞이면 건너뛴다. */
+function stripWrap(text) {
+  const lines = text.split('\n');
+  const wraps = [];
+  const bare = lines.map(l => {
+    const m = l.match(/^<i>([\s\S]*)<\/i>$/);
+    if (m) { wraps.push(true); return m[1]; }
+    wraps.push(false); return l;
+  });
+  if (bare.some(l => /[<>]/.test(l))) return null;   // 줄 중간에 태그가 있으면 손대지 않는다
+  return { text: bare.join('\n'), wraps };
+}
+function restoreWrap(text, wraps) {
+  return text.split('\n').map((l, i) => (wraps[i] ? '<i>' + l + '</i>' : l)).join('\n');
+}
+
+async function bareunSpacing(key, text, all) {
+  const w = stripWrap(text);
+  if (!w) return null;
+  const r0 = await bareunSpacingRaw(key, w.text, all);
+  if (!r0) return null;
+  return { ko: restoreWrap(r0.ko, w.wraps), why: r0.why, n: r0.n };
+}
+
+async function bareunSpacingRaw(key, text, all) {
+  const r = await fetch(BAREUN_URL, {
+    method: 'POST',
+    headers: { 'api-key': key, 'Content-Type': 'application/json' },
+    // UTF32 로 보내면 오프셋이 글자 수 단위가 되어 JS 문자열 인덱스와 그대로 맞는다.
+    // UTF8 이면 바이트 오프셋이라 한글마다 3씩 어긋난다.
+    body: JSON.stringify({ document: { content: text, language: 'ko-KR' }, encoding_type: 'UTF32' }),
+  });
+  const raw = await r.text();
+  let j;
+  try { j = JSON.parse(raw); }
+  catch (e) {
+    // 도움말 문구에 날것의 제어문자가 섞여 오는 경우가 있다
+    j = JSON.parse(raw.replace(CTRL, c => (c === '\n' ? '\\n' : '')));
+  }
+  if (!r.ok) throw new Error((j && j.message) || ('HTTP ' + r.status));
+
+  const edits = [];
+  for (const b of (j.revisedBlocks || [])) {
+    const v = (b.revisions || []).find(x => x.category === 'SPACING'
+                && (all || SPACE_SAFE.test(String(x.helpId || ''))));
+    if (!v || !b.origin) continue;
+    edits.push({ at: b.origin.beginOffset, len: b.origin.length, to: v.revised, help: v.helpId });
+  }
+  if (!edits.length) return null;
+  // 뒤에서부터 갈아 끼운다. 앞에서 하면 뒤쪽 오프셋이 밀린다.
+  edits.sort((a, b2) => b2.at - a.at);
+  let out = text;
+  for (const e of edits) out = out.slice(0, e.at) + e.to + out.slice(e.at + e.len);
+  if (out === text) return null;
+  return { ko: out, why: String(edits[0].help || '띄어쓰기').replace(/^맞춤법_/, ''), n: edits.length };
+}
+
+/* 형태소 분석 — 줄 나누기가 품사를 추측하지 않고 알게 한다.
+   auto_split_sentence 를 끄고 어절을 공백으로 이어 보내면 토큰이 어절 순서 그대로
+   돌아온다. 그래서 여러 큐를 한 번에 보내고 어절 수로 잘라 되돌릴 수 있다. */
+const BAREUN_POS_URL = 'https://api.bareun.ai/bareun.LanguageService/AnalyzeSyntax';
+
+async function bareunPos(key, text) {
+  const r = await fetch(BAREUN_POS_URL, {
+    method: 'POST',
+    headers: { 'api-key': key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ document: { content: text, language: 'ko-KR' },
+                           encoding_type: 'UTF32', auto_split_sentence: false }),
+  });
+  const raw = await r.text();
+  let j;
+  try { j = JSON.parse(raw); } catch (e) { j = JSON.parse(raw.replace(CTRL, '')); }
+  if (!r.ok) throw new Error((j && j.message) || ('HTTP ' + r.status));
+  const out = [];
+  for (const st of (j.sentences || []))
+    for (const t of (st.tokens || []))
+      out.push((t.morphemes || []).map(m => m.tag).join('+'));
+  return out;
+}
+
+/* 큐마다 한 번씩 부르므로 하나씩 하면 너무 느리다. 몇 개씩 동시에 돌린다. */
+async function pool(items, n, fn, onTick) {
+  let i = 0, done = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) {
+      const k = i++;
+      try { await fn(items[k], k); } catch (e) { /* 한 큐가 실패해도 나머지는 계속 */ }
+      onTick(++done);
+    }
+  }));
+}
+
 async function callClaude({ key, model, effort, system, user, schema, maxTokens = 16000 }) {
   const body = {
     model, max_tokens: maxTokens,
@@ -1432,8 +1556,12 @@ const unmark = (s) => String(s).replace(/\s*⏎\s*/g, '\n').replace(/[ \t]+\n/g,
 const BYNAME = { fmt:'표기 정리', spot:'타이밍 정리', spell:'맞춤법', scr:'화면 정보', pv:'프리뷰', man:'직접 수정', song:'♪ 제거' };
 /* 마무리 작업 — 글자 → 타이밍 → 트랙 → 확인 → 내보내기 순 */
 const STEP_DEFS = [
+  { id:'pos', n:'형태소 분석', k:'MORPH', sub:'줄 나누기 정확도',
+    d:'바른AI 로 품사를 미리 분석해 둡니다. 줄 나누기가 「창고」의 「고」를 연결어미로, 「거대」를 의존명사 「거」로 잘못 보던 것을 품사 태그로 정확히 가릅니다. 번역문은 건드리지 않고, 다음 단계의 줄 나누기와 검수가 정확해집니다. 바른AI 키가 필요합니다.' },
   { id:'fmt', n:'표기 일괄 정리', k:'BATCH FORMAT', sub:'줄바꿈·부호 정돈',
     d:'한 줄 기준을 넘으면 어절 경계에서 다시 나누고, 두 줄이 한 줄에 들어가면 합칩니다(절이 끝난 자리에는 쉼표를 넣습니다). 줄 끝에 남은 쉼표와 짝 없는 대사 대시도 지웁니다. 번역문은 건드리지 않습니다.' },
+  { id:'space', n:'띄어쓰기 검사', k:'SPACING', sub:'바른AI 제안 붙임',
+    d:'바른AI 로 띄어쓰기만 검사합니다. 맞춤법·오타·표기 교정은 받지 않습니다 — 고유명사를 망가뜨리거나(디에고→지에코) 자막에 쓰지 않는 마침표를 붙입니다. 기본값은 보조용언만입니다. 띄어쓰기 전체를 받으면 「25번가→25번 가」 「탈취제도→탈취 제도」 같은 오교정이 섞이니 확인하며 쓰세요. 제안으로 붙여 큐마다 따로 받아들입니다.' },
   { id:'spell', n:'맞춤법 검사', k:'SPELLCHECK', sub:'Claude 제안 붙임',
     d:'맞춤법·띄어쓰기·오타만 검사합니다. 문장을 고치지 않고 제안으로 붙여 큐마다 따로 받아들일 수 있습니다. API 키가 필요합니다.' },
   { id:'spot', n:'자막 타이밍 정리', k:'RESPOT', sub:'노출 시간 조정',
@@ -1486,10 +1614,11 @@ function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols,
           <button className="sug" onClick={onRevert}>원래대로</button>
         )}
         {c.spell && (
-          <button className="sug" style={{borderColor:'rgba(52,211,153,.5)'}}
-            title="맞춤법 검사 제안 — 눌러서 적용"
+          <button className="sug"
+            style={{borderColor: c.spell.src === 'bareun' ? 'rgba(129,140,248,.55)' : 'rgba(52,211,153,.5)'}}
+            title={(c.spell.src === 'bareun' ? '바른AI 띄어쓰기' : '맞춤법 검사') + ' 제안 — 눌러서 적용'}
             onClick={() => onChange(c.spell.ko)}>
-            맞춤법 · {c.spell.why} → {c.spell.ko.replace(/\n/g, ' / ')}</button>
+            {c.spell.src === 'bareun' ? '' : '맞춤법 · '}{c.spell.why} → {c.spell.ko.replace(/\n/g, ' / ')}</button>
         )}
         {c.sugg && c.sugg.map((s, k) => (
           <button key={k} className="sug" onClick={() => onChange(s)}>{k+1}안 · {s}</button>
@@ -1974,6 +2103,9 @@ function App() {
   const [showRules, setShowRules] = useState(false);
   const [ruleQ, setRuleQ] = useState('');
   const [showSpell, setShowSpell] = useState(false);   // 맞춤법 결과 검토 패널
+  const [bkey, setBkey] = useState(() => { try { return localStorage.getItem('bak') || ''; } catch (e) { return ''; } });
+  const [spaceAll, setSpaceAll] = useState(false);   // 띄어쓰기 채택 범위: 보조용언만 | 전체
+  const [posDone, setPosDone] = useState(0);         // 품사 분석이 끝난 큐 수
   const [lim, setLim]       = useState(13);   // 사양서 03: 한 줄 13자 이내 (공백 제외)
   const [key, setKey]       = useState(localStorage.getItem('ak') || '');
   const [model, setModel]   = useState('claude-opus-5');
@@ -2242,6 +2374,64 @@ function App() {
           was0: c.was0 === undefined ? (c.ko || '') : c.was0 } : c));
   }, []);
 
+  /* 형태소 분석 — 줄 나누기가 쓸 품사를 미리 받아 큐에 캐시한다.
+     여러 큐를 공백으로 이어 한 번에 보내고 어절 수로 잘라 되돌린다.
+     토큰 수가 어절 수와 어긋나면 그 묶음은 통째로 버린다. 어긋난 채 쓰면
+     엉뚱한 품사로 줄을 나눈다. 없으면 기존 휴리스틱으로 돌아간다. */
+  const posscan = async () => {
+    if (!bkey) { setErr('바른AI 키를 입력하세요.'); return; }
+    const idx = cues.map((c, i) => [c, i]).filter(([c]) => (c.ko || '').trim());
+    if (!idx.length) { setErr('분석할 자막이 없습니다.'); return; }
+    setErr(''); setBusy(true); setProg({ done: 0, total: idx.length });
+    const work = cues.map(c => ({ ...c }));
+    const B = 60; let done = 0, fail = 0;
+    for (let s0 = 0; s0 < idx.length; s0 += B) {
+      const chunk = idx.slice(s0, s0 + B);
+      const flats = chunk.map(([c]) => (c.ko || '').replace(/\s+/g, ' ').trim());
+      const want = flats.reduce((a, f) => a + f.split(' ').length, 0);
+      try {
+        const tags = await bareunPos(bkey, flats.join(' '));
+        if (tags.length !== want) fail++;
+        else {
+          let k = 0;
+          for (let m = 0; m < chunk.length; m++) {
+            const n = flats[m].split(' ').length;
+            work[chunk[m][1]].pos = { t: flats[m], w: tags.slice(k, k + n) };
+            k += n;
+          }
+        }
+      } catch (e) { fail++; }
+      done += chunk.length; setProg({ done, total: idx.length });
+    }
+    try { localStorage.setItem('bak', bkey); } catch (e) {}
+    setCues(work);
+    const got = work.filter(c => c.pos).length;
+    setErr(fail ? `${fail}묶음은 분석하지 못했습니다 — 그 큐는 기존 방식으로 줄을 나눕니다` : '');
+    setSaved(`${got}큐 품사 분석 완료`);
+    setPosDone(got);
+    setBusy(false);
+  };
+
+  /* 띄어쓰기 검사 — 바른AI. 큐마다 한 번씩 부르고 SPACING 만 받는다.
+     맞춤법 검사와 같은 자리(c.spell)에 제안을 붙여 같은 패널에서 함께 고른다. */
+  const spacecheck = async () => {
+    if (!bkey) { setErr('바른AI 키를 입력하세요. 띄어쓰기 검사는 바른AI 를 씁니다.'); return; }
+    const idx = cues.map((c, i) => [c, i]).filter(([c]) => (c.ko || '').trim());
+    if (!idx.length) { setErr('검사할 자막이 없습니다.'); return; }
+    setErr(''); setBusy(true); setProg({ done: 0, total: idx.length });
+    const work = cues.map(c => ({ ...c }));
+    let hit = 0, fail = 0;
+    await pool(idx, 5, async ([c, i]) => {
+      const r = await bareunSpacing(bkey, c.ko, spaceAll).catch(e => { fail++; throw e; });
+      if (r) { work[i].spell = { ko: r.ko, why: '띄어쓰기 · ' + r.why, src: 'bareun' }; hit++; }
+    }, (done) => setProg({ done, total: idx.length }));
+    try { localStorage.setItem('bak', bkey); } catch (e) {}
+    setCues(work);
+    setShowSpell(hit > 0);
+    setErr(fail ? `${fail}큐는 검사하지 못했습니다 (키·한도 확인)` : hit ? '' : '띄어쓰기 문제를 찾지 못했습니다.');
+    setBusy(false);
+  };
+
   /* 맞춤법 검사 — 고칠 것만 돌려받아 큐에 붙인다. 바로 반영하지 않고 제안으로 둔다. */
   const spellcheck = async () => {
     if (!key) { setErr('API 키를 입력하세요. 맞춤법 검사는 Claude 를 씁니다.'); return; }
@@ -2382,9 +2572,11 @@ function App() {
   /* 마무리 작업 — 업무 순서대로 */
   const runStep = (id) => {
     if (id === 'fmt') apply(prev => prev.map(c => {
-      const ko = finalize(c.ko||'', { keepNote, lim, kind: c.kind });
+      const ko = finalize(c.ko||'', { keepNote, lim, kind: c.kind, pos: c.pos });
       return ko === (c.ko||'') ? c : mark(c, { ko }, 'fmt');
     }));
+    else if (id === 'pos') posscan();
+    else if (id === 'space') spacecheck();
     else if (id === 'spell') spellcheck();
     else if (id === 'spot') apply(prev => {
       const seeded = prev.map(c => c.tin0 === undefined ? { ...c, tin0: c.in, tout0: c.out } : c);
@@ -2402,7 +2594,9 @@ function App() {
     else if (id === 'dl') download();
   };
   const stepTargets = (id) => {
-    if (id === 'fmt')  return cues.filter(c => finalize(c.ko||'', { keepNote, lim, kind: c.kind }) !== (c.ko||'')).length;
+    if (id === 'fmt')  return cues.filter(c => finalize(c.ko||'', { keepNote, lim, kind: c.kind, pos: c.pos }) !== (c.ko||'')).length;
+    if (id === 'pos')   return cues.filter(c => (c.ko || '').trim() && !c.pos).length;
+    if (id === 'space') return cues.filter(c => (c.ko || '').trim()).length;
     if (id === 'spell') return cues.filter(c => c.spell).length;
     if (id === 'scr')  return cues.filter(c => c.track !== 'sub' && isScreenInfo(c.ko||'', c.en||'')).length;
     return 0;
@@ -2816,9 +3010,9 @@ function App() {
             onClick={saveWork}>작업 파일 저장</button>
           <button onClick={() => document.getElementById('workpick').click()}>열기</button>
           <button className="primary" onClick={download}
-            title={subCount ? `본편과 서브를 각각 SRT 로 저장합니다 (본편 ${cues.filter(c=>(c.ko||'').trim() && c.track!=='sub').length}큐 · 서브 ${subCount}큐)`
-              : '한글 자막을 SRT 로 저장합니다'}>
-            한글 SRT 내려받기</button>
+            title={subCount ? `본편과 서브를 각각 ${expFmt.toUpperCase()} 로 저장합니다 (본편 ${cues.filter(c=>(c.ko||'').trim() && c.track!=='sub').length}큐 · 서브 ${subCount}큐)`
+              : `한글 자막을 ${expFmt.toUpperCase()} 로 저장합니다`}>
+            한글 자막 내려받기 · {expFmt.toUpperCase()}</button>
         </div>
 
         <div className="rail">
@@ -2856,6 +3050,18 @@ function App() {
                     onClick={() => apply(prev => prev.map(c =>
                       c.spell ? mark(c, { ko: c.spell.ko, spell: null }, 'spell') : c))}>
                     제안 {cues.filter(c => c.spell).length}건 적용</button>}
+                {(st.id === 'space' || st.id === 'pos') &&
+                  <input type="password" style={{flex:'1 1 190px', maxWidth:300, fontSize:12}}
+                    placeholder="바른AI 키 (koba-…) · 이 브라우저에만 저장"
+                    value={bkey} onChange={e => setBkey(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && bkey) runStep(st.id); }} />}
+                {st.id === 'space' &&
+                  <select value={spaceAll ? 'all' : 'safe'} title="채택할 교정 범위"
+                    style={{flex:'0 0 auto', maxWidth:170}}
+                    onChange={e => setSpaceAll(e.target.value === 'all')}>
+                    <option value="safe">보조용언만 (안전)</option>
+                    <option value="all">띄어쓰기 전체</option>
+                  </select>}
                 {st.id === 'scr' && subCount > 0 &&
                   <button onClick={() => apply(prev => prev.map(c =>
                     c.track === 'sub' ? undoOne({ ...c, by: 'scr' }, 'scr') : c))}>서브 전체 해제</button>}
@@ -2874,16 +3080,19 @@ function App() {
                     <option value="csv">CSV</option>
                   </select>}
                 <button className={st.fin ? 'primary' : ''}
-                  disabled={st.id === 'spell' && busy}
+                  disabled={(st.id === 'spell' || st.id === 'space' || st.id === 'pos') && busy}
                   onClick={() => runStep(st.id)}>
                   {st.id === 'rule' ? (showRules ? '패널 닫기' : '패널 열기')
                     : st.id === 'dl' ? expFmt.toUpperCase() + ' 내려받기'
-                    : st.id === 'spell' ? (busy ? '검사 중…' : '검사 실행')
+                    : (st.id === 'spell' || st.id === 'space') ? (busy ? '검사 중…' : '검사 실행')
+                    : st.id === 'pos' ? (busy ? '분석 중…' : '분석 실행')
                     : tg ? `실행 · ${tg}큐` : '대상 없음'}
                 </button>
               </div>
               <p className="dd">{st.d}</p>
-              {st.id === 'spell' && prog && (
+              {st.id === 'pos' && posDone > 0 &&
+                <p className="hint" style={{marginTop:6}}>{posDone}큐 품사 분석 완료 — 줄 나누기가 품사로 판정합니다</p>}
+              {(st.id === 'spell' || st.id === 'space' || st.id === 'pos') && prog && (
                 <div className="prog">
                   <span className="pbar">
                     <i className={prog.done >= prog.total ? 'done' : ''}
@@ -2963,7 +3172,7 @@ function App() {
         {showSpell && cues.some(c => c.spell) && (
           <div className="rulebox">
             <div className="rulehead">
-              맞춤법 제안 — <b>{cues.filter(c => c.spell).length}</b>건
+              검사 제안 — <b>{cues.filter(c => c.spell).length}</b>건
               <em> · 타임코드를 눌러 해당 큐로 갑니다. 하나씩 정하거나 아래에서 한꺼번에 처리하세요</em>
             </div>
             <div className="spellbox">
