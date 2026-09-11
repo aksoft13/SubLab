@@ -219,6 +219,26 @@
   .detail .dh h3 { font-size:14px; font-weight:700; margin:0; }
   .detail .dh .k { font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--dim3); }
   .detail .dd { font-size:12.5px; color:var(--dim); margin:0 0 8px; line-height:1.65; }
+  /* 키가 필요하다는 안내 옆에서 바로 발급 페이지로 간다 */
+  /* 대본 통독 결과 — 섹션마다 고칠 수 있게 */
+  .briefbox { border:1px solid rgba(var(--tint),.14); border-radius:8px; padding:11px 12px;
+              margin:0 0 12px; background:rgba(148,163,184,.035); }
+  .brieff { display:block; margin-bottom:8px; }
+  .brieff .cap { display:block; font-size:11.5px; color:var(--dim2); margin-bottom:3px; }
+  .brieff .cap em { font-style:normal; color:var(--dim3); }
+  .brieff textarea { width:100%; font-size:12.5px; line-height:1.6; resize:vertical; }
+  .rankbox { margin:2px 0 8px; padding-top:8px; border-top:1px solid rgba(148,163,184,.10); }
+  .rankbox .cap { display:block; font-size:11.5px; color:var(--dim2); margin-bottom:5px; }
+  .rankbox .cap em { font-style:normal; color:var(--dim3); }
+  .ranks { display:flex; flex-wrap:wrap; gap:5px 12px; }
+  .rank { display:inline-flex; align-items:center; gap:5px; font-size:12px; }
+  .rank b { font-weight:600; white-space:nowrap; }
+  .rank select { font-size:11.5px; padding:1px 4px; }
+  .chk { display:inline-flex; align-items:center; gap:5px; font-size:12px; white-space:nowrap; }
+  .getkey { display:inline-block; white-space:nowrap; font-size:11.5px; padding:1px 8px;
+            border:1px solid rgba(56,189,248,.45); border-radius:999px;
+            color:var(--acc,#38bdf8); text-decoration:none; vertical-align:middle; }
+  .getkey:hover { border-color:rgba(56,189,248,.9); background:rgba(56,189,248,.10); }
   .detail .cau { font-size:12px; color:var(--warn); margin:0 0 8px; }
   .chg { margin:0; padding:0; list-style:none; font-size:12.5px; max-height:260px; overflow-y:auto; }
   .chg li { padding:7px 0; border-bottom:1px solid rgba(var(--tint),.09);
@@ -233,6 +253,16 @@
   .pbar i { display:block; height:100%; background:var(--sky); border-radius:99px; transition:width .35s; }
   .pbar i.done { background:var(--ok); }
   .prog span { font-family:var(--mono); font-size:11px; color:var(--dim2); white-space:nowrap; }
+  /* 프리뷰 화자 지정 줄 */
+  .spk { display:flex; align-items:center; gap:5px; flex-wrap:wrap; padding:6px 0;
+         border-top:1px solid rgba(148,163,184,.10); }
+  .spk .lb { font-size:10.5px; color:var(--dim2); letter-spacing:.06em; margin-right:2px; }
+  .spkb { font-size:11.5px; padding:2px 8px; display:inline-flex; align-items:center; gap:4px; }
+  .spkb i { font-style:normal; font-size:9.5px; color:var(--dim3); font-family:var(--mono); }
+  .spkb.on { border-color:rgba(56,189,248,.7); color:var(--acc,#38bdf8); }
+  .spki { width:104px; font-size:11.5px; padding:2px 6px; }
+  .st2.okk { color:var(--ok,#34d399); }
+  .st2.warn { color:var(--warn,#f59e0b); }
   .who { display:inline-block; font-family:var(--mono); font-size:9.5px; letter-spacing:.04em;
     color:var(--dim2); background:rgba(var(--tint),.07); border-radius:4px; padding:0 5px;
     margin-bottom:3px; vertical-align:1px; }
@@ -612,7 +642,10 @@ function parseCSV(text, fps) {
 /* 확장자가 .csv 가 아니어도 내용으로 알아본다. 프레임 TC 판정을 먼저 통과시킨 뒤에만 부른다 —
    '00:00:01,000 - 00:00:03,500' 같은 줄도 쉼표가 둘이라 CSV 로 오인될 수 있다. */
 function isCSV(text) {
-  const lines = text.replace(/\r\n/g,'\n').split('\n').filter(l => l.trim()).slice(0, 20);
+  // 따옴표로 감싼 칸을 먼저 비운다. 두 줄 자막이 든 CSV 는 칸 안에 줄바꿈이 있어서
+  // 그대로 줄을 세면 쉼표 없는 줄이 잔뜩 잡혀 CSV 가 아닌 것으로 판정된다.
+  const flat = text.replace(/"(?:[^"]|"")*"/g, '""');
+  const lines = flat.replace(/\r\n/g,'\n').split('\n').filter(l => l.trim()).slice(0, 20);
   if (!lines.length || lines.some(l => l.includes('-->'))) return false;
   const wide = lines.filter(l => (l.match(/,/g) || []).length >= 2).length;
   return wide >= Math.max(2, Math.ceil(lines.length * 0.7));
@@ -1167,7 +1200,7 @@ const LANG_RULES = {
   },
 };
 
-function sysPrompt({ glossary, tone, lim, notes, lyric, srcLang = 'en', bang = true }) {
+function sysPrompt({ glossary, tone, lim, notes, brief, lyric, srcLang = 'en', bang = true, ranked = false }) {
   const L = LANG_RULES[srcLang] || LANG_RULES.en;
   const rules = LYRIC_RULES;
   return `너는 영화 자막 전문 번역가다. ${L.name} 자막을 한국어 자막으로 번역한다.
@@ -1267,6 +1300,13 @@ ${L.len}
 - 원문이 몸짓·완곡어로 돌려 말한 자리에서 뜻을 놓치지 마라. 장면이 무엇을 말하는지 옮긴다.
   可是身體 就是控制不住 → 그런데도 마음이 / 그대에게 기울고 맙니다
   (몸이 / 말을 듣지 않습니다 X — 고백이 신체 증상으로 바뀐다)
+- 큐 앞에 [이름] 이 붙어 있으면 화자가 이미 정해진 것이다. 누구인지 다시 판단하지 마라.
+  그대로 따르고 who 에도 같은 이름을 적는다.
+  그 인물의 높임 등급과 호칭은 [작품 배경]의 서열표와 관계표를 따른다.
+- [이름?] 은 아직 확실하지 않은 추정이다. 기본적으로 그대로 따르되,
+  대사가 명백히 다른 사람의 것이면 바로잡고 who 에 고친 이름을 적는다.
+- [이름] 과 [이름?] 은 표시일 뿐이므로 번역문에 옮기지 않는다.
+- 표시가 없는 큐만 화자를 처음부터 추정한다. 추정할 때는 아래를 따른다.
 - 화자는 앞뒤 큐를 함께 보고 정한다. 앞만 보면 틀린다.
   같은 말이 연달아 나오면 한 사람의 반복이 아니라 되물음일 수 있다.
   走了 / 走了 → 갔습니다 / 가 버렸다고?
@@ -1275,7 +1315,14 @@ ${L.len}
   뒤에서 험담 / 아직 여기 계셨어요? / 무례하게 굴지 마 / 어젯밤 구해 주셔서 고마워요
   — '무례하게 굴지 마'는 바로 앞이 아니라 험담을 꾸짖는 말이다.
   뒤의 인사가 존댓말이면 그 앞의 인사도 같은 화자·같은 등급이다.
-- 한 인물의 높임 등급은 처음부터 끝까지 일관되게 유지한다.
+${ranked ? `- 높임은 [작품 배경]의 서열표로 정한다. 숫자가 클수록 윗사람이다.
+  말하는 이가 듣는 이보다 낮으면 존댓말, 같거나 높으면 반말이다.
+  존댓말은 아래에서 위로만 간다. 서열이 다르다고 양쪽이 모두 높이는 것이 아니다.
+  사부와 제자라면 제자는 존댓말, 사부는 반말이다.
+  같은 서열이어도 초면이거나 공적인 자리면 서로 해요체를 쓴다.
+  관계표에 적힌 쌍은 서열표보다 관계표를 따른다. 대사에 근거가 있기 때문이다.
+  서열표에 없는 인물은 임의로 정하지 말고 앞뒤 큐에서 같은 화자의 말투를 찾아 맞춘다.
+` : ''}- 한 인물의 높임 등급은 처음부터 끝까지 일관되게 유지한다.
   존댓말로 빌던 인물이 한 큐만 반말이 되면 다른 사람의 대사처럼 읽힌다.
   같은 자리에 있는 여럿(주루 손님, 마을 사람)도 등급을 맞춘다.
 - 원문은 화자와 높임을 표시하지 않는다. 走吧 · Let's go. 에는 그 정보가 없고,
@@ -1339,14 +1386,18 @@ ${L.noun}
   고칠 이유가 없으면 기존번역을 그대로 쓴다.
 - 참고 줄이 비어 있으면 없는 것으로 보고 원문만으로 판단한다.
 ${tone ? `\n[톤·수위]\n${tone}` : ''}
+${brief ? `\n[작품 배경 — 번역 전에 대본을 통독해 정리한 것. 사람이 확인했다]\n${brief}` : ''}
 ${glossary ? `\n[고유명사·용어 고정]\n${glossary}` : ''}
 ${notes ? `\n[작품 메모]\n${notes}` : ''}
 
 [입출력 형식]
 - 입력은 "번호. 원문" 형태다. 원문 안의 ⏎ 는 그 자막 안의 줄바꿈을 뜻한다.
 - 원문 아래에 [중문] [영문] [기존번역] 같은 참고 줄이 붙을 수 있다. 함께 읽고 판단한다.
+- 큐에 [확정 — 번역하지 말 것] 이 붙어 있으면 사람이 이미 승인한 자막이다.
+  대화가 끊겨 보이지 않도록 자리에 둔 것이다. 읽기만 하고 그 번호는 출력에 넣지 마라.
+  앞뒤 큐의 말투·호칭·높임을 이 줄들에 맞춘다.
 - 출력은 {n, ko} 객체의 배열이다. n 은 입력 번호를 그대로 쓴다.
-- 번호를 빠뜨리거나 합치거나 나누지 마라. 입력 번호마다 정확히 하나씩 반환한다.
+- 번호를 빠뜨리거나 합치거나 나누지 마라. [확정] 표시가 없는 입력 번호마다 정확히 하나씩 반환한다.
 - ko 안의 줄바꿈은 실제 개행으로 쓴다. ⏎ 기호는 결과에 절대 쓰지 마라.`;
 }
 
@@ -1495,6 +1546,99 @@ const ARR_SCHEMA = {
     required: ['n','ko','who'], additionalProperties: false } } },
   required: ['lines'], additionalProperties: false,
 };
+/* ── 대본 통독 ────────────────────────────────────────────────
+   번역은 40큐씩 쪼개서 돌린다. 그래서 800번 큐를 옮길 때 100번에서 무슨 일이
+   있었는지 모른다. 용어집이 이름은 알려주지만 관계와 상황은 알려주지 않는다.
+   번역 전에 원문 전체를 한 번 읽혀 배경·인물·관계를 뽑아 두고, 사람이 고친 뒤
+   모든 배치의 시스템 프롬프트에 함께 넣는다. */
+const BRIEF_SCHEMA = {
+  type: 'object',
+  properties: {
+    setting: { type: 'string' },
+    chars:     { type: 'array', items: { type: 'object', additionalProperties: false,
+      properties: { name: { type: 'string' }, role: { type: 'string' },
+                    level: { type: 'integer' } },
+      required: ['name','role','level'] } },
+    relations: { type: 'array', items: { type: 'object', additionalProperties: false,
+      properties: { from: { type: 'string' }, to: { type: 'string' },
+                    speech: { type: 'string' }, call: { type: 'string' } },
+      required: ['from','to','speech','call'] } },
+    repeats:   { type: 'array', items: { type: 'object', additionalProperties: false,
+      properties: { line: { type: 'string' }, ko: { type: 'string' } },
+      required: ['line','ko'] } },
+    notes:     { type: 'array', items: { type: 'string' } },
+  },
+  required: ['setting','chars','relations','repeats','notes'],
+  additionalProperties: false,
+};
+
+const BRIEF_PROMPT = `너는 영화 자막 번역가다. 지금은 번역하지 않는다.
+원문 자막 전체를 읽고, 번역할 때 필요한 배경 정보를 정리한다.
+이 정리는 사람이 확인하고 고친 뒤 번역 지침으로 들어간다.
+
+[뽑을 것]
+- setting: 시대·장소·장르를 한 문장으로. 근거가 대사에 있어야 한다.
+- chars: 이름이 불리는 인물. 이름과 한 줄짜리 역할.
+  이름이 안 나오면 넣지 마라. 지어내지 마라.
+  level 은 작품 안에서의 서열이다. 숫자가 클수록 윗사람이다.
+  5 웃어른(사부·부모·주군) · 4 윗사람(선배·형·상관) · 3 또래(동년배·동료)
+  2 아랫사람(제자·부하·후배) · 1 하인·아이.
+  호칭이나 말투에 근거가 있을 때만 매긴다. 근거가 없으면 0 으로 둔다.
+  0 은 미정이라는 뜻이다. 어중간하면 3 이 아니라 0 이다.
+- relations: 누가 누구에게 어떤 높임으로 말하는지.
+  speech 는 존댓말 · 반말 · 해라체 중 하나로 적는다.
+  call 은 실제로 부르는 호칭 (사부님 · 형님 · 이름 · 없음).
+  대사에 근거가 있는 쌍만 넣는다. 짐작으로 채우지 마라.
+- repeats: 두 번 이상 되풀이되는 대사·구호. line 은 원문, ko 는 번역안.
+  같은 말이 매번 다르게 옮겨지는 것을 막기 위한 것이다.
+- notes: 번역할 때 조심할 점. 말장난, 뜻이 겹치는 호칭, 시대 표현 같은 것.
+
+[지키는 것]
+- 대사에서 확인되는 것만 적는다. 그럴듯한 추측을 채우지 마라.
+- 모르면 비워 둔다. 빈 배열이 틀린 정보보다 낫다.
+- 줄거리를 요약하지 마라. 번역에 쓰이는 정보만 적는다.
+- 한국어로 적는다.`;
+
+/* 화자 배정 — 번역보다 먼저 돈다. 누가 말하는지는 원문만 있으면 정할 수 있고,
+   출력이 이름뿐이라 번역보다 훨씬 싸다. 한 번에 100큐씩 보므로 번역 배치(40큐)보다
+   넓게 보고 판단한다. 확신 등급을 함께 받아 사람이 확인할 곳을 좁힌다. */
+const WHO_SCHEMA = {
+  type: 'object',
+  properties: { lines: { type: 'array', items: { type: 'object', additionalProperties: false,
+    properties: { n: { type: 'integer' }, who: { type: 'string' }, conf: { type: 'string' } },
+    required: ['n','who','conf'] } } },
+  required: ['lines'], additionalProperties: false,
+};
+
+const WHO_PROMPT = `너는 영화 자막 번역가다. 지금은 번역하지 않는다.
+각 큐를 누가 말하는지만 정한다.
+
+[적는 것]
+- n: 받은 큐 번호를 그대로 쓴다.
+- who: 말하는 인물. 이름이 대사에서 확인되면 그 이름을 쓴다.
+  이름을 모르면 「남1」「여2」처럼 작품 전체에서 일관된 임시 이름을 쓴다.
+  같은 인물에게 같은 이름을 계속 쓰는 것이 이 작업의 전부다.
+- conf: 확신 정도. 확실 · 추측 · 모름 중 하나로만 적는다.
+  확실 — 이름이 불렸거나, 대화 상대가 분명하거나, 앞 큐에 그대로 이어지는 같은 사람의 말이다.
+  추측 — 흐름상 그 사람일 뿐 근거가 약하다.
+  모름 — 판단할 근거가 없다. 이때 who 는 빈 문자열로 둔다.
+
+[지키는 것]
+- 번역하지 마라. 한국어 대사를 만들지 마라. who 와 conf 만 돌려준다.
+- 확실을 남발하지 마라. 사람이 확인할 곳을 고르기 위한 값이다.
+  근거를 한 문장으로 댈 수 없으면 확실이 아니라 추측이다.
+- 화자는 앞뒤를 함께 보고 정한다. 앞만 보면 틀린다.
+  같은 말이 연달아 나오면 한 사람의 반복이 아니라 되물음일 수 있다.
+  꾸짖는 말은 바로 앞 대사가 아니라 그보다 앞의 대사를 향한 것일 수 있다.
+- 대화 상대는 바뀐다는 신호가 있을 때만 바뀐다. 신호가 없으면 앞의 상대가 그대로 이어진다.
+- 한 큐에 두 사람의 말이 들어 있으면 먼저 말한 사람을 적고 conf 는 추측으로 둔다.
+- 받은 큐를 하나도 빠뜨리지 마라.`;
+
+/* 높임은 서열에서 나온다. 아래가 위에게 존댓말을 쓰고, 같거나 위면 반말이다.
+   한쪽 방향으로만 간다 — 서열이 다르다고 서로 높이는 것이 아니다.
+   0 은 미정이며 서열표에 싣지 않는다. 틀린 서열은 없는 것만 못하다. */
+const LEVELS = [[5,'웃어른'],[4,'윗사람'],[3,'또래'],[2,'아랫사람'],[1,'하인·아이']];
+
 /* 맞춤법 검사 — 고칠 것만 돌려받는다. 멀쩡한 큐는 응답에 넣지 않는다. */
 const SPELL_SCHEMA = {
   type: 'object',
@@ -1561,7 +1705,7 @@ const STEP_DEFS = [
   { id:'fmt', n:'표기 일괄 정리', k:'BATCH FORMAT', sub:'줄바꿈·부호 정돈',
     d:'한 줄 기준을 넘으면 어절 경계에서 다시 나누고, 두 줄이 한 줄에 들어가면 합칩니다(절이 끝난 자리에는 쉼표를 넣습니다). 줄 끝에 남은 쉼표와 짝 없는 대사 대시도 지웁니다. 번역문은 건드리지 않습니다.' },
   { id:'space', n:'띄어쓰기 검사', k:'SPACING', sub:'바른AI 제안 붙임',
-    d:'바른AI 로 띄어쓰기만 검사합니다. 맞춤법·오타·표기 교정은 받지 않습니다 — 고유명사를 망가뜨리거나(디에고→지에코) 자막에 쓰지 않는 마침표를 붙입니다. 기본값은 보조용언만입니다. 띄어쓰기 전체를 받으면 「25번가→25번 가」 「탈취제도→탈취 제도」 같은 오교정이 섞이니 확인하며 쓰세요. 제안으로 붙여 큐마다 따로 받아들입니다.' },
+    d:'바른AI 로 띄어쓰기만 검사합니다. 맞춤법·오타·표기 교정은 받지 않습니다 — 고유명사를 망가뜨리거나(디에고→지에코) 자막에 쓰지 않는 마침표를 붙입니다. 기본값은 보조용언만입니다. 띄어쓰기 전체를 받으면 「25번가→25번 가」 「탈취제도→탈취 제도」 같은 오교정이 섞이니 확인하며 쓰세요. 제안으로 붙여 큐마다 따로 받아들입니다. 바른AI 키가 필요합니다.' },
   { id:'spell', n:'맞춤법 검사', k:'SPELLCHECK', sub:'Claude 제안 붙임',
     d:'맞춤법·띄어쓰기·오타만 검사합니다. 문장을 고치지 않고 제안으로 붙여 큐마다 따로 받아들일 수 있습니다. API 키가 필요합니다.' },
   { id:'spot', n:'자막 타이밍 정리', k:'RESPOT', sub:'노출 시간 조정',
@@ -1575,11 +1719,13 @@ const STEP_DEFS = [
   { id:'dl', n:'한글 자막 내려받기', k:'EXPORT', sub:'납품 파일 저장', fin:true,
     d:'본편과 서브를 각각 저장합니다. 형식은 SRT(납품 표준) · TXT(타임코드 + 자막) · CSV(원문까지 함께, 스프레드시트 검토용) 중에 고릅니다. 앞 단계가 모두 끝난 뒤 마지막에 누릅니다.' },
 ];
-function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols, showWas, showEn }) {
+function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, onLock, busy, refCols, showWas, showEn }) {
   const [editing, setEditing] = useState(false);
   const warns = inspect(c.ko || '', lim, c.kind, c.en || '', c.out - c.in);
   return (
-    <tr id={'cue-' + i} className={warns.length ? 'sus' : ''} style={c.edited ? { outline:'1px solid rgba(56,189,248,.25)', outlineOffset:'-1px' } : undefined}>
+    <tr id={'cue-' + i} className={warns.length ? 'sus' : ''}
+      style={c.lock ? { outline:'1px solid rgba(250,204,21,.35)', outlineOffset:'-1px' }
+           : c.edited ? { outline:'1px solid rgba(56,189,248,.25)', outlineOffset:'-1px' } : undefined}>
       <td className="idx">{i+1}{c.kind==='lyric' && <div style={{color:'var(--lyric)',fontSize:12}}>♪</div>}</td>
       <td className="tc">
         {c.tin0 !== undefined && <><s>{s2t(c.tin0)}</s><s>{s2t(c.tout0)}</s></>}
@@ -1638,6 +1784,12 @@ function Row({ c, i, lim, onChange, onSuggest, onTrack, onRevert, busy, refCols,
             onClick={() => onSuggest(false)}>줄바꿈</button>
           <button className="sm" disabled={busy} title="이 큐만 다시 번역 — 2안"
             onClick={() => onSuggest(true)}>재번역</button>
+          <button className="sm" onClick={onLock} style={{gridColumn:'1 / -1',
+              borderColor: c.lock ? 'rgba(250,204,21,.55)' : undefined,
+              color: c.lock ? 'var(--warn)' : undefined}}
+            title={c.lock ? '고정됨 — 다시 번역해도 덮이지 않습니다. 눌러서 해제'
+                          : '고정하면 다시 번역해도 이 큐는 그대로 둡니다'}>
+            {c.lock ? '고정됨' : '고정'}</button>
           <button className="sm" onClick={onTrack} style={{gridColumn:'1 / -1'}}
             title="대사와 겹치는 화면 정보만 서브로 뺍니다"
             style={c.track === 'sub'
@@ -1835,7 +1987,7 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
   const setCue = (i, patch) => apply(prev => prev.map((c,k) => {
     if (k !== i) return c;
     const n = { ...c, ...patch, edited: true, by: 'pv' };
-    if (patch.ko !== undefined && n.was0 === undefined) n.was0 = c.ko || '';
+    if (patch.ko !== undefined) { n.lock = true; if (n.was0 === undefined) n.was0 = c.ko || ''; }
     if ((patch.in !== undefined || patch.out !== undefined) && n.tin0 === undefined) {
       n.tin0 = c.in; n.tout0 = c.out;
     }
@@ -1883,9 +2035,17 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
       else if (e.key === '+' || e.key === '=') { e.preventDefault(); setZoom(view/1.6); }
       else if (e.key === '-' || e.key === '_') { e.preventDefault(); setZoom(view*1.6); }
       else if (K === '0') { e.preventDefault(); setSpan(dur); setC0(0); }
+      else if (/^[1-9]$/.test(e.key) && cur && speakers[+e.key - 1]) {
+        e.preventDefault(); setWho(sel, speakers[+e.key - 1]);   // 1~9 = 화자 목록 순서
+      }
+      else if (K === 'w' && cur && sel > 0) {
+        e.preventDefault(); setWho(sel, cues[sel-1].who);         // W = 앞 큐와 같은 화자
+      }
+      else if (K === 'h') { e.preventDefault(); nextWho(); }      // H = 확인할 화자 큐로
+      else if (K === 'y' && cur && cur.who) { e.preventDefault(); okWho(); }
     };
     addEventListener('keydown', h); return () => removeEventListener('keydown', h);
-  }, [t, sel, edit, view, dur, cur, playing, sp]);
+  }, [t, sel, edit, view, dur, cur, playing, sp, speakers, cues]);
 
   /* 타임라인 끌기 */
   const tlw = () => (strip.current ? strip.current.clientWidth : 600);
@@ -1902,6 +2062,25 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
     else if (drag.zone === 'o') setCue(drag.k, { out: Math.max(drag.i0 + FR, drag.o0 + dt) });
     else setCue(drag.k, { in: Math.max(0, drag.i0 + dt), out: drag.o0 + dt }); };
   const onUp = (e) => { if (drag) { strip.current.releasePointerCapture(e.pointerId); setDrag(null); } };
+
+  /* 화자 — 1차 번역에서 모델이 붙인 who 를 사람이 확정한다.
+     영상을 보며 훑는 동안 지정할 수 있어야 하므로 숫자키로도 찍는다. */
+  const speakers = useMemo(() => {
+    const m = new Map();
+    for (const c of cues) if (c.who) m.set(c.who, (m.get(c.who) || 0) + 1);
+    return [...m].sort((a, b) => b[1] - a[1]).map(([w]) => w);
+  }, [cues]);
+  const okCount = useMemo(() => cues.filter(c => c.whoOk).length, [cues]);
+  const setWho = (i, w) => { if (i >= 0) setCue(i, { who: w || undefined, whoOk: !!w }); };
+
+  /* 확인이 필요한 큐 — 사람이 확정하지도, 모델이 확실이라 하지도 않은 것.
+     배정이 끝나면 사람이 볼 곳은 여기뿐이다. 전량을 훑을 이유가 없다. */
+  const needWho = (c) => !c.whoOk && c.whoC !== '확실';
+  const whoLeft = useMemo(() => cues.filter(needWho).length, [cues]);
+  const nextWho = () => { const nx = cues.findIndex((c, k) => k > sel && needWho(c));
+    const k = nx >= 0 ? nx : cues.findIndex(needWho);
+    if (k >= 0) { setSel(k); seek(Math.max(0, cues[k].in - 0.4)); } };
+  const okWho = () => { if (cur && cur.who) { setWho(sel, cur.who); nextWho(); } };
 
   const L = cur ? Math.max(...(cur.ko||'').split('\n').map(x => CLEN(x))) : 0;
   const P = cur ? CLEN(cur.ko||'') / Math.max(0.01, cur.out - cur.in) : 0;
@@ -1964,6 +2143,7 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
             <button className="ib" onClick={()=>nudgeTo(t+FR)} title="1프레임 앞 · ⇧→">›</button>
             <span className="tnow">{tcf(t)}</span>
             <span style={{flex:1}} />
+            {whoLeft > 0 && <button className="jump" onClick={nextWho}><i />화자 확인 {whoLeft}</button>}
             {lateCount > 0 && <button className="jump" onClick={nextIssue}><i />다음 문제 큐 {lateCount}</button>}
             <span className="zoom">
               <button onClick={()=>{setSpan(dur);setC0(0);}}>전체</button>
@@ -2009,6 +2189,27 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
                   onKeyDown={e => { if (e.key === 'Escape') setEdit(false); }} />
               : <div className="ebtxt" onClick={() => { setEdit(true); if (playing) toggle(); }}>
                   {cur.ko || <span style={{color:'var(--dim3)'}}>(빈 자막) — 눌러서 입력</span>}</div>}
+            <div className="spk">
+              <span className="lb">화자</span>
+              {speakers.slice(0, 9).map((w, k) => (
+                <button key={w} className={'spkb' + (cur.who === w ? ' on' : '')}
+                  title={`${k+1} 키`} onClick={() => setWho(sel, w)}>
+                  <i>{k+1}</i>{w}</button>
+              ))}
+              <input className="spki" value={cur.who || ''} placeholder="새 화자"
+                onChange={e => setWho(sel, e.target.value)} />
+              {cur.who && <button className="sm" onClick={() => setWho(sel, '')}>지움</button>}
+              <span style={{flex:1}} />
+              <span className={'st2' + (cur.whoOk ? ' okk'
+                : cur.whoC === '확실' ? '' : ' warn')}>
+                {cur.whoOk ? '확정' : cur.whoC === '확실' ? '확실 · 모델'
+                  : cur.whoC === '추측' ? '추측 — 확인 필요' : '모름 — 확인 필요'}</span>
+              {cur.who && !cur.whoOk &&
+                <button className="sm" title="Y 키 — 이 화자가 맞다고 확정하고 다음 확인할 큐로"
+                  onClick={okWho}>맞음</button>}
+              <button className="sm" disabled={sel <= 0} title="W 키"
+                onClick={() => setWho(sel, cues[sel-1].who)}>앞과 같게</button>
+            </div>
             <div className="io">
               <span className="iog"><span className="lb">IN</span>
                 <span className={'v' + (cur.tin0 !== undefined ? ' moved' : '')}>{tcf(cur.in)}</span>
@@ -2028,6 +2229,8 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
             <div className="keys">
               <span><b>← →</b>앞뒤 자막 (그 큐만 재생)</span><span><b>⇧← →</b>1프레임</span>
               <span><b>Space</b>재생</span><span><b>I</b>인점</span><span><b>O</b>아웃점</span>
+              <span><b>1~9</b>화자 지정</span><span><b>W</b>앞과 같은 화자</span>
+              <span><b>Y</b>화자 맞음</span><span><b>H</b>확인할 화자 큐</span>
               <span><b>N</b>다음 문제</span><span><b>+ −</b>확대·축소</span><span><b>0</b>전체</span>
             </div>
           </div>}
@@ -2035,7 +2238,9 @@ function Preview({ cues, apply, mark, lim, fps, meta }) {
 
         <div className="side">
           <div className="sh"><b>자막</b>
-            <span className="c">{cues.length}큐{lateCount ? ` · 늦음 ${lateCount}` : ''}</span></div>
+            <span className="c">{cues.length}큐{lateCount ? ` · 늦음 ${lateCount}` : ''}
+              {okCount ? ` · 화자확정 ${okCount}` : ''}
+              {whoLeft ? ` · 화자확인 ${whoLeft}` : ''}</span></div>
           <div className="flt">
             {[['all','전체'],['late','늦음'],['edit','수정됨']].map(([k,lab]) => (
               <button key={k} className={filt===k?'on':''} onClick={()=>setFilt(k)}>{lab}</button>
@@ -2106,12 +2311,33 @@ function App() {
   const [bkey, setBkey] = useState(() => { try { return localStorage.getItem('bak') || ''; } catch (e) { return ''; } });
   const [spaceAll, setSpaceAll] = useState(false);   // 띄어쓰기 채택 범위: 보조용언만 | 전체
   const [posDone, setPosDone] = useState(0);         // 품사 분석이 끝난 큐 수
+  /* 바른AI 사용량 — 서버에서 못 가져온다. 대시보드는 계정 로그인 세션을 쓰고
+     api-key 로 부를 수 있는 사용량 API 가 없다(404). 그래서 앱이 직접 센다.
+     이 브라우저에서 이 앱으로 부른 것만 잡히므로 참고용이다. */
+  const [use, setUse] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('bareun-usage')) || {}; } catch (e) { return {}; }
+  });
+  const addUse = (kind, calls, words) => setUse(u => {
+    const n = { ...u,
+      [kind + 'Calls']: (u[kind + 'Calls'] || 0) + calls,
+      [kind + 'Words']: (u[kind + 'Words'] || 0) + words,
+      since: u.since || Date.now() };
+    try { localStorage.setItem('bareun-usage', JSON.stringify(n)); } catch (e) {}
+    return n;
+  });
+  const wordsOf = (t) => (String(t || '').trim() ? String(t).trim().split(/\s+/).length : 0);
+  const useTotal = (use.spaceWords || 0) + (use.posWords || 0);
   const [lim, setLim]       = useState(13);   // 사양서 03: 한 줄 13자 이내 (공백 제외)
   const [key, setKey]       = useState(localStorage.getItem('ak') || '');
   const [model, setModel]   = useState('claude-opus-5');
   const [effort, setEffort] = useState('medium');
   const [gloss, setGloss]   = useState('');
   const [terms, setTerms]   = useState([]);   // 원문 용어 후보
+  /* 대본 통독 결과. 모델이 구조로 주지만 화면에서는 섹션마다 텍스트로 고친다.
+     구조를 그대로 편집하게 만들면 화면만 복잡해지고, 어차피 프롬프트로는 글로 들어간다. */
+  const [mergeMsg, setMergeMsg] = useState('');   // 검수본 병합 결과 — 자동저장 문구에 덮이면 안 된다
+  const [brief, setBrief] = useState(null);   // { setting, chars, relations, repeats, notes } 모두 문자열
+  const [briefOn, setBriefOn] = useState(true);   // 번역에 실을지
   const [tone, setTone]     = useState('영화 자막 톤. 현대 구어체. 사극 말투(-하오, -옵니다, -이니라, -소서, -거늘)는 쓰지 않는다. 손윗사람의 위엄은 해라체로 살린다. 욕설은 원문 수위대로 직역.');
   const [notes, setNotes]   = useState('');
   const [prog, setProg]     = useState(null);
@@ -2212,7 +2438,7 @@ function App() {
   // 탭을 바꾸면 하던 작업을 비운다. 두 갈래가 섞이면 결과가 헷갈린다.
   const reset = () => {
     setFiles([]); setRaw(null); setCues([]); setMeta('');
-    setBase(null); setRefs([]); setTerms([]);
+    setBase(null); setRefs([]); setTerms([]); setBrief(null);
     setProg(null); setErr(''); setSongOn(new Set());
   };
 
@@ -2260,10 +2486,148 @@ function App() {
     zshift ? filtered.map(c => ({ ...c, in: c.in - zshift, out: c.out - zshift })) : filtered,
     [filtered, zshift]);
 
+  /* 원문 전체를 한 번 읽혀 배경을 뽑는다. 번역이 아니라 준비다.
+     1,600큐면 한 번 호출로 끝난다. 번역 한 배치보다 싸다. */
+  const readScript = async () => {
+    if (!key) { setErr('API 키를 입력하세요.'); return; }
+    if (!prepared.length) { setErr('먼저 자막을 불러오세요.'); return; }
+    setErr(''); setBusy(true); setProg({ done: 0, total: 1 });
+    try {
+      const body = prepared.map((c, i) => `${i+1}. ${(c.en||'').replace(/\n/g, ' ')}`).join('\n');
+      const { text } = await callClaude({
+        key, model, effort, system: BRIEF_PROMPT, user: body,
+        schema: BRIEF_SCHEMA, maxTokens: 8000 });
+      const d = JSON.parse(text);
+      const j = (a) => (a || []).join('\n');
+      setBrief({
+        setting: d.setting || '',
+        chars: j((d.chars || []).map(c => `${c.name} — ${c.role}`)),
+        levels: Object.fromEntries((d.chars || [])
+          .filter(c => c.level >= 1 && c.level <= 5).map(c => [c.name, c.level])),
+        relations: j((d.relations || []).map(r =>
+          `${r.from} → ${r.to} · ${r.speech}${r.call && r.call !== '없음' ? ' · ' + r.call : ''}`)),
+        repeats: j((d.repeats || []).map(r => `${r.line}  →  ${r.ko}`)),
+        notes: j(d.notes),
+      });
+      setBriefOn(true);
+      setSaved('대본 분석 완료 — 확인하고 고친 뒤 번역하세요');
+    } catch (e) { setErr('대본 분석 실패: ' + e.message); }
+    setProg(null); setBusy(false);
+  };
+
+  /* 서열을 매길 이름. 통독이 뽑은 인물이 먼저고, 자막에 나온 화자를 뒤에 붙인다.
+     통독을 안 돌렸어도 1차 번역을 마쳤으면 who 가 있으므로 여기서 잡힌다. */
+  const rankNames = useMemo(() => {
+    const out = [], seen = new Set();
+    const add = (n) => { const t = (n || '').trim();
+      if (t && !seen.has(t)) { seen.add(t); out.push(t); } };
+    if (brief) for (const line of (brief.chars || '').split('\n')) add(line.split(/[—–-]/)[0]);
+    for (const c of cues) add(c.who);
+    return out;
+  }, [brief, cues]);
+
+  const setLevel = (n, v) => setBrief(b => {
+    const lv = { ...(b.levels || {}) };
+    if (v) lv[n] = +v; else delete lv[n];
+    return { ...b, levels: lv };
+  });
+
+  /* 사람이 고친 뒤의 최종 텍스트. 이대로 시스템 프롬프트에 들어간다. */
+  const rankText = useMemo(() => {
+    const lv = (brief && brief.levels) || {};
+    const rows = rankNames.filter(n => lv[n]).map(n => `${n} ${lv[n]}`);
+    return rows.length ? rows.join('\n') : '';
+  }, [brief, rankNames]);
+
+  const briefText = useMemo(() => {
+    if (!brief || !briefOn) return '';
+    const part = (t, v) => (v && v.trim()) ? `${t}\n${v.trim()}` : '';
+    return [part('배경', brief.setting), part('인물', brief.chars),
+            part('서열 — 숫자가 클수록 윗사람. 아래가 위에게 존댓말을 쓴다', rankText),
+            part('관계·높임', brief.relations), part('반복 대사', brief.repeats),
+            part('주의', brief.notes)].filter(Boolean).join('\n\n');
+  }, [brief, briefOn, rankText]);
+  const ranked = !!(briefOn && rankText);
+
+  /* 큐별 화자 상태. whoOk(사람 확정) > whoC='확실'(모델) > '추측' > 없음(모름).
+     확인해야 할 큐 수가 곧 프리뷰에서 사람이 할 일의 양이다. */
+  const whoStat = useMemo(() => {
+    let sure = 0, guess = 0, none = 0, any = false;
+    for (const c of cues) {
+      if (c.whoC || c.whoOk) any = true;
+      if (c.whoOk || c.whoC === '확실') sure++;
+      else if (c.whoC === '추측') guess++;
+      else none++;
+    }
+    return { done: any, sure, guess, none, check: guess + none };
+  }, [cues]);
+
+  /* 화자 배정 — 번역 앞에 한 번 돈다. 원문만으로 할 수 있는 일이라 번역을 기다릴 필요가 없고,
+     여기서 정해 두면 번역이 40큐마다 화자를 다시 추측하지 않는다. */
+  const assignSpeakers = async () => {
+    if (!key) { setErr('API 키를 입력하세요.'); return; }
+    if (!prepared.length) { setErr('먼저 자막을 불러오세요.'); return; }
+    setErr(''); setBusy(true);
+    const work = (cues.length === prepared.length ? cues : prepared).map(c => ({ ...c }));
+    setProg({ done: 0, total: work.length });
+    const B = 100;   // 돌려받는 것이 이름뿐이라 번역 배치보다 넓게 잡는다
+    try {
+      for (let s0 = 0; s0 < work.length; s0 += B) {
+        const to = Math.min(s0 + B, work.length);
+        const back = work.slice(Math.max(0, s0 - 10), s0)
+          .map(c => `${(c.en||'').replace(/\n/g,' ')}  (${c.who || '?'})`);
+        const head = back.length
+          ? '[앞선 대사 — 화자를 정하지 말 것. 이어지는 흐름 참고용]\n'
+            + back.join('\n') + '\n\n[여기부터]\n'
+          : '';
+        const user = head + work.slice(s0, to)
+          .map((c, i) => `${i+1}. ${(c.en||'').replace(/\n/g,' ')}`).join('\n');
+        const { text } = await callClaude({ key, model, effort,
+          system: WHO_PROMPT + (briefText ? `\n\n[작품 배경]\n${briefText}` : ''),
+          user, schema: WHO_SCHEMA, maxTokens: 8000 });
+        const by = new Map((JSON.parse(text).lines || [])
+          .filter(o => o && typeof o.n === 'number').map(o => [o.n, o]));
+        for (let i = s0; i < to; i++) {
+          const o = by.get(i - s0 + 1); if (!o) continue;
+          const c = work[i];
+          if (c.whoOk) continue;                      // 사람이 확정한 것은 건드리지 않는다
+          const w = (o.who || '').trim();
+          if (!w || o.conf === '모름') { delete c.who; delete c.whoC; }
+          else { c.who = w; c.whoC = o.conf === '확실' ? '확실' : '추측'; }
+        }
+        setCues([...work]);
+        setProg({ done: to, total: work.length });
+      }
+      let sure = 0, guess = 0, none = 0;
+      for (const c of work) {
+        if (c.whoOk || c.whoC === '확실') sure++;
+        else if (c.whoC === '추측') guess++; else none++;
+      }
+      setSaved(`화자 배정 완료 — 확실 ${sure} · 추측 ${guess} · 모름 ${none}`
+        + (guess + none ? ` · 프리뷰에서 ${guess + none}큐만 확인하면 됩니다` : ''));
+    } catch (e) { setErr('화자 배정 실패: ' + e.message); }
+    setProg(null); setBusy(false);
+  };
+
   const translate = async () => {
     if (!key) { setErr('API 키를 입력하세요.'); return; }
     setErr(''); setBusy(true);
     let work = prepared.map(c => ({ ...c }));
+    /* 이미 번역한 것이 있으면 잠긴 큐를 그대로 가져온다.
+       prepared 는 원문에서 새로 만든 것이라 ko 가 비어 있다.
+       전처리 옵션이 바뀌어 큐 수가 달라졌으면 짝을 맞출 수 없으므로 포기한다. */
+    if (cues.length === work.length) {
+      work = work.map((c, i) => {
+        const o = cues[i];
+        // 화자는 잠금과 별개다. 확정이든 모델 배정이든 그대로 이어 받는다.
+        const keep = (o.whoOk || o.whoC)
+          ? { who: o.who, whoOk: o.whoOk, whoC: o.whoC } : {};
+        return o.lock
+          ? { ...c, ...keep, ko: o.ko, who: o.who, lock: true,
+              was0: o.was0, by: o.by, edited: o.edited }
+          : { ...c, ...keep };
+      });
+    }
     for (const r of refs) work = attachRef(work, r.label, r.cues);
     setCues(work);
     // 대사/가사가 섞이지 않도록 같은 종류끼리 배치를 만든다 (지침이 다르므로)
@@ -2276,8 +2640,14 @@ function App() {
     let done = 0; const missing = [];
     try {
       for (const b of batches) {
-        const chunk = work.slice(b.from, b.to);
-        const system = sysPrompt({ glossary: gloss, tone, lim, notes, lyric: b.kind === 'lyric', srcLang, bang });
+        // 잠긴 큐도 자리에 둔 채 함께 보낸다. 빼 버리면 배치 한가운데가 끊겨
+        // 모델이 없는 대화를 이어 붙여 읽는다 — 화자와 높임이 그 자리에서 어긋난다.
+        // 고치지는 않으므로 번호는 gi 에 담긴 것만 돌려받는다.
+        const gi = [];
+        for (let i = b.from; i < b.to; i++) if (!work[i].lock) gi.push(i);
+        if (!gi.length) { done = b.to; setProg({ done, total: work.length }); continue; }
+        const range = work.slice(b.from, b.to);
+        const system = sysPrompt({ glossary: gloss, tone, lim, notes, brief: briefText, lyric: b.kind === 'lyric', srcLang, bang, ranked });
         /* 직전 배치의 끝자락을 문맥으로 넘긴다 — 없으면 40큐마다 말투가 새로 추측된다 */
         const back = work.slice(Math.max(0, b.from - 8), b.from).filter(c => (c.ko||'').trim());
         const head = back.length
@@ -2286,8 +2656,17 @@ function App() {
                 + (c.who ? `  (${c.who})` : '')).join('\n')
             + '\n\n[여기부터 번역]\n'
           : '';
-        const user = head + chunk.map((c, i) => {
-          const head = `${i+1}. ${c.en.replace(/\n/g,' ⏎ ')}`;
+        const user = head + range.map((c, k) => {
+          const src = (c.en || '').replace(/\n/g,' ⏎ ');
+          if (c.lock) {   // 사람이 승인한 자막 — 읽히되 고쳐지지 않는다
+            const ko = (c.ko || '').replace(/\n/g,' ⏎ ').trim();
+            return `${k+1}. [확정 — 번역하지 말 것] ${src}`
+              + (ko ? `  →  ${ko}` : '') + (c.who ? `  (${c.who})` : '');
+          }
+          // 확정·확실은 [이름], 추측은 [이름?]. 근거의 세기를 그대로 넘긴다.
+          const spk = !c.who ? ''
+            : (c.whoOk || c.whoC === '확실') ? `[${c.who}] ` : `[${c.who}?] `;
+          const head = `${k+1}. ${spk}${src}`;
           const extra = refCols
             .map(lab => [lab, ((c.refs || {})[lab] || '').replace(/\n/g,' ⏎ ').trim()])
             .filter(([, t]) => t)
@@ -2300,12 +2679,15 @@ function App() {
         if (!Array.isArray(arr)) throw new Error('응답이 배열이 아닙니다');
         const byN = new Map(arr.filter(o => o && typeof o.n === 'number').map(o => [o.n, o.ko]));
         const byWho = new Map(arr.filter(o => o && typeof o.n === 'number' && o.who).map(o => [o.n, o.who]));
-        chunk.forEach((c, i) => {
-          const v = byN.get(i + 1);
-          if (v == null) { missing.push(b.from + i + 1); c.ko = ''; return; }
-          c.ko = finalize(v, { keepNote, lim, kind: c.kind });
-          const w = byWho.get(i + 1); if (w) c.who = w;
-        });
+        for (const i of gi) {
+          const c = work[i], n = i - b.from + 1;   // 번호는 배치 안 위치 그대로다
+          const v = byN.get(n);
+          if (v == null) { missing.push(i + 1); c.ko = ''; continue; }
+          c.ko = finalize(v, { keepNote, lim, kind: c.kind, pos: c.pos });
+          // 확정·확실은 지킨다. 추측은 번역이 바로잡았으면 받되 등급은 그대로 둔다.
+          const w = byWho.get(n);
+          if (w && !c.whoOk && c.whoC !== '확실') c.who = w;
+        }
         done = b.to;
         setCues([...work]);
         setProg({ done, total: work.length });
@@ -2368,11 +2750,18 @@ function App() {
   const revertBy = useCallback((by) =>
     apply(prev => prev.map(c => c.by === by ? undoOne(c, by) : c)), [apply]);
 
+  /* 손으로 고친 큐는 잠근다. 다시 번역해도 덮이지 않는다.
+     용어집이나 대본 분석을 고치고 재번역할 때 손댄 것이 날아가면
+     사실상 재번역을 못 쓰게 된다. 자물쇠는 큐마다 풀 수 있다. */
   const setKo = useCallback((idx, v) => {
     setCues(prev => prev.map((c, i) => i === idx
-      ? { ...c, ko: v, sugg: null, edited: true, by: 'man',
+      ? { ...c, ko: v, sugg: null, edited: true, by: 'man', lock: true,
           was0: c.was0 === undefined ? (c.ko || '') : c.was0 } : c));
   }, []);
+  const toggleLock = useCallback((idx) => {
+    setCues(prev => prev.map((c, i) => i === idx ? { ...c, lock: !c.lock } : c));
+  }, []);
+  const lockCount = useMemo(() => cues.filter(c => c.lock).length, [cues]);
 
   /* 형태소 분석 — 줄 나누기가 쓸 품사를 미리 받아 큐에 캐시한다.
      여러 큐를 공백으로 이어 한 번에 보내고 어절 수로 잘라 되돌린다.
@@ -2401,6 +2790,7 @@ function App() {
           }
         }
       } catch (e) { fail++; }
+      addUse('pos', 1, flats.reduce((a, f) => a + wordsOf(f), 0));
       done += chunk.length; setProg({ done, total: idx.length });
     }
     try { localStorage.setItem('bak', bkey); } catch (e) {}
@@ -2423,6 +2813,7 @@ function App() {
     let hit = 0, fail = 0;
     await pool(idx, 5, async ([c, i]) => {
       const r = await bareunSpacing(bkey, c.ko, spaceAll).catch(e => { fail++; throw e; });
+      addUse('space', 1, wordsOf(c.ko));
       if (r) { work[i].spell = { ko: r.ko, why: '띄어쓰기 · ' + r.why, src: 'bareun' }; hit++; }
     }, (done) => setProg({ done, total: idx.length }));
     try { localStorage.setItem('bak', bkey); } catch (e) {}
@@ -2479,7 +2870,7 @@ function App() {
     try {
       const { text } = await callClaude({
         key, model, effort, maxTokens: 4000,
-        system: sysPrompt({ glossary: gloss, tone, lim, notes, srcLang, bang }),
+        system: sysPrompt({ glossary: gloss, tone, lim, notes, brief: briefText, srcLang, bang, ranked }),
         user: `아래 자막 한 개를 서로 다른 방식으로 2가지 번역해라. ⏎ 는 줄바꿈이다.\n`
             + `결과의 줄바꿈은 실제 개행으로 쓰고 ⏎ 기호는 쓰지 마라.\n\n`
             + `현재 번역: ${c.ko}\n원문: ${c.en.replace(/\n/g,' ⏎ ')}`,
@@ -2489,7 +2880,7 @@ function App() {
       setCues(prev => prev.map((x,i) => i===idx ? { ...x, sugg: arr.map(a => finalize(a, { keepNote, lim, kind: c.kind })) } : x));
     } catch (e) { setErr('재번역 실패: ' + e.message); }
     setBusy(false);
-  }, [cues, key, model, effort, gloss, tone, lim, notes, keepNote]);
+  }, [cues, key, model, effort, gloss, tone, lim, notes, briefText, ranked, keepNote]);
 
   const view = useMemo(() => {
     let out = cues.map((c,i)=>[c,i]);
@@ -2642,7 +3033,7 @@ function App() {
   }, [cues, meta, mode, lim]);
   const saveWork = () => {
     const name = workName() + '.sublab.json';
-    const blob = new Blob([JSON.stringify({ v:1, meta, mode, lim, cues })], { type:'application/json' });
+    const blob = new Blob([JSON.stringify({ v:1, meta, mode, lim, cues, brief })], { type:'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
     setSaved(name + ' 저장됨');
@@ -2654,6 +3045,7 @@ function App() {
         const d = JSON.parse(r.result);
         if (!Array.isArray(d.cues)) throw new Error('cues 없음');
         setCues(d.cues); if (d.meta) setMeta(d.meta); if (d.lim) setLim(d.lim);
+        if (d.brief) { setBrief(d.brief); setBriefOn(true); }
         past.current = []; future.current = []; setTick(t => t + 1);
         setSaved(file.name + ' 에서 불러옴'); setErr('');
       } catch (e) { setErr('작업 파일을 읽지 못했습니다 — ' + e.message); }
@@ -2674,6 +3066,40 @@ function App() {
         [i+1, s2t(c.in), s2t(c.out), c.en || '', c.ko || ''].map(csvCell).join(',')))
       .join('\r\n') + '\r\n',
   };
+  /* 검수본 병합 — 내보낸 파일을 밖에서 고쳐 온 것을 지금 작업에 되돌려 넣는다.
+     번역 업체나 감수자에게 CSV 로 넘기고 받아오는 왕복을 위한 것이다.
+     시작 시간으로 짝을 맞춘다. 번호는 큐를 빼고 넣으면 어긋나지만 시간은 안 어긋난다.
+     병합한 큐는 잠근다 — 사람이 승인한 것이므로 다시 번역해도 덮이면 안 된다. */
+  const mergeReview = async (file) => {
+    if (!cues.length) { setErr('먼저 작업 중인 자막이 있어야 병합할 수 있습니다.'); return; }
+    try {
+      const buf = await file.arrayBuffer();
+      const txt = decodeText(buf);
+      const inc = /\.csv$/i.test(file.name) || isCSV(txt) ? parseCSV(txt, fps).cues
+                : isFrameTC(txt) ? parseFrameTC(txt, fps).cues.map(c =>
+                    ({ ...c, en: Array.isArray(c.en) ? c.en.join('\n') : c.en }))
+                : parseSRT(txt);
+      if (!inc.length) throw new Error('큐를 읽지 못했습니다');
+      // 시작 시간 → 들여온 텍스트
+      const byT = new Map(inc.map(c => [Math.round(c.in * 1000), (c.en || '').trim()]));
+      let hit = 0, same = 0;
+      const next = cues.map((c, i) => {
+        let v = byT.get(Math.round(c.in * 1000));
+        if (v === undefined && inc.length === cues.length) v = (inc[i].en || '').trim();  // 시간이 안 맞으면 순서로
+        if (v === undefined || !v) return c;
+        if (v === (c.ko || '')) { same++; return c; }   // 바뀐 것만 잠근다
+        hit++;
+        return { ...c, ko: v, lock: true, edited: true, by: 'man', sugg: null, spell: null,
+                 was0: c.was0 === undefined ? (c.ko || '') : c.was0 };
+      });
+      apply(() => next);
+      setErr('');
+      setMergeMsg(hit
+        ? `${file.name} — ${hit}큐 반영 · ${same}큐 동일 · 반영한 큐는 고정했습니다`
+        : `${file.name} — 바뀐 큐가 없습니다 (${same}큐 모두 동일)`);
+    } catch (e) { setErr('검수본을 읽지 못했습니다 — ' + e.message); setMergeMsg(''); }
+  };
+
   const download = () => {
     const base = (meta.split(' —')[0] || 'subtitle').replace(/\.[^.]+$/, '');
     const save = (list, suffix) => {
@@ -2933,7 +3359,106 @@ function App() {
               <option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
             </select></label>
         </div>
+        {/* 대본 통독 — 번역은 40큐씩 쪼개 돌리므로 모델이 작품 전체를 못 본다.
+            먼저 한 번 읽혀 배경을 뽑고, 사람이 고친 뒤 모든 배치에 함께 싣는다. */}
         <div className="row" style={{marginBottom:8}}>
+          <button className="sm" disabled={busy || !prepared.length} onClick={readScript}>
+            {brief ? '대본 다시 분석' : '대본 통독 — 배경·인물·관계 뽑기'}</button>
+          {!brief && cues.some(c => c.who) &&
+            <button className="sm" title="통독 없이 1차 번역의 화자만 가지고 서열을 매깁니다"
+              onClick={() => setBrief({ setting:'', chars:'', relations:'',
+                                        repeats:'', notes:'', levels:{} })}>
+              서열만 매기기</button>}
+          <span className="hint" style={{margin:0}}>
+            번역은 40큐씩 나눠 돌아서 모델이 작품 전체를 보지 못합니다.
+            먼저 원문을 통으로 한 번 읽혀 <b>배경·인물·관계·반복 대사</b>를 뽑아 두면
+            모든 배치가 같은 배경을 공유합니다. <b>뽑은 내용은 아래에서 고칠 수 있습니다.</b>
+            {' '}호출 한 번이라 번역 한 배치보다 쌉니다.</span>
+        </div>
+        {brief && (
+          <div className="briefbox">
+            <div className="row" style={{marginBottom:8, alignItems:'center'}}>
+              <b style={{fontSize:12.5}}>대본 분석</b>
+              <span className="hint" style={{margin:0, flex:1}}>
+                대사에서 확인되는 것만 적게 했습니다. <b>틀린 곳은 고치고, 모르는 건 지우세요.</b>
+                빈칸이 틀린 정보보다 낫습니다.</span>
+              <label className="chk"><input type="checkbox" checked={briefOn}
+                onChange={e => setBriefOn(e.target.checked)} /> 번역에 싣기</label>
+              <button className="sm" onClick={() => setBrief(null)}>버리기</button>
+            </div>
+            {[['setting','배경','시대 · 장소 · 장르', 2],
+              ['chars','인물','이름 — 역할', 5],
+              ['relations','관계·높임','누가 → 누구에게 · 존댓말/반말 · 호칭', 5],
+              ['repeats','반복 대사','원문  →  번역안', 4],
+              ['notes','주의','번역할 때 조심할 점', 3]].map(([k, label, ph, rows]) => (
+              <React.Fragment key={k}>
+              <label className="brieff">
+                <span className="cap">{label} <em>{ph}</em></span>
+                <textarea rows={rows} value={brief[k]} placeholder={ph}
+                  onChange={e => setBrief(b => ({ ...b, [k]: e.target.value }))} />
+              </label>
+              {k === 'chars' && rankNames.length > 0 && (
+              <div className="rankbox">
+                <span className="cap">서열 <em>숫자가 클수록 윗사람 · 아래가 위에게만 존댓말</em></span>
+                <div className="ranks">
+                  {rankNames.map(n => (
+                    <label key={n} className="rank"><b>{n}</b>
+                      <select value={(brief.levels || {})[n] || ''}
+                        onChange={e => setLevel(n, e.target.value)}>
+                        <option value="">미정</option>
+                        {LEVELS.map(([v, t]) => <option key={v} value={v}>{v} {t}</option>)}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+                <p className="hint" style={{marginTop:6}}>
+                  {rankText
+                    ? <>같은 서열끼리는 <b>반말</b>, 아래가 위에게만 <b>존댓말</b>입니다.
+                        서열이 다르다고 양쪽이 서로 높이지는 않습니다.{' '}
+                        <b>관계·높임</b>에 적힌 쌍은 대사에 근거가 있으므로 서열보다 우선합니다.</>
+                    : <>서열을 매기면 높임을 짐작이 아니라 규칙으로 정합니다.
+                        <b>미정</b>인 인물은 앞뒤 큐의 말투를 따릅니다 — 확실하지 않으면 비워 두세요.</>}
+                </p>
+              </div>
+            )}
+              </React.Fragment>
+            ))}
+            <p className="hint" style={{marginTop:2}}>
+              {briefOn
+                ? <>이 내용이 <b>모든 배치의 번역 지침</b>에 들어갑니다 ({briefText.length}자).</>
+                : <>지금은 번역에 싣지 않습니다. 체크하면 들어갑니다.</>}
+            </p>
+          </div>
+        )}
+
+        {/* 화자 배정 — 번역 앞에 둔다. 누가 말하는지는 원문만으로 정할 수 있고,
+            여기서 정해 두면 번역이 배치마다 화자를 다시 추측하지 않는다. */}
+        <div className="row" style={{marginBottom:8}}>
+          <button className="sm" disabled={busy || !prepared.length} onClick={assignSpeakers}>
+            {whoStat.done ? '화자 다시 배정' : '화자 배정 — 누가 말하는지 먼저 정하기'}</button>
+          {whoStat.done
+            ? <span className="hint" style={{margin:0}}>
+                확실 <b>{whoStat.sure}</b> · 추측 <b>{whoStat.guess}</b> · 모름 <b>{whoStat.none}</b>
+                {whoStat.check
+                  ? <> — 프리뷰에서 <b>{whoStat.check}큐</b>만 확인하면 됩니다.{' '}
+                      <b>H</b> 키로 확인할 큐만 건너뜁니다.</>
+                  : <> — 모두 확인했습니다.</>}</span>
+            : <span className="hint" style={{margin:0}}>
+                화자는 번역 없이 원문만으로 정할 수 있고, 돌려받는 것이 이름뿐이라
+                <b> 번역보다 훨씬 쌉니다</b>. 먼저 배정해 두면 번역이 화자를 다시 추측하지 않아
+                <b> 높임이 흔들리지 않습니다</b>. 확신이 약한 큐는 <b>추측·모름</b>으로 표시해
+                프리뷰에서 볼 곳을 좁힙니다.</span>}
+        </div>
+
+        <div className="row" style={{marginBottom:8}}>
+          {cues.length > 0 && <>
+            <button className="sm" title="지금까지 손댄 큐를 모두 고정합니다"
+              onClick={() => setCues(p => p.map(c => c.edited ? { ...c, lock: true } : c))}>
+              고친 큐 전부 고정</button>
+            {lockCount > 0 &&
+              <button className="sm" onClick={() => setCues(p => p.map(c => ({ ...c, lock: false })))}>
+                고정 {lockCount}건 해제</button>}
+          </>}
           <button className="sm" onClick={() => setTerms(extractTerms(prepared))}>원문에서 용어 후보 뽑기</button>
           <span className="hint" style={{margin:0}}>
             자주 나오는 고유명사·호칭을 세어 보여줍니다. 눌러서 용어집에 넣고 <b>번역할 표기를 정해주세요.</b>
@@ -2961,7 +3486,13 @@ function App() {
         </div>
         <div className="row" style={{marginTop:12}}>
           <button className="primary" disabled={busy || !prepared.length} onClick={translate}>
-            {busy ? '번역 중…' : `${prepared.length}큐 번역 시작`}</button>
+            {busy ? '번역 중…' : (() => {
+              const fit = cues.length === prepared.length;
+              const spk = fit && whoStat.done ? ` · 화자 ${whoStat.sure}큐 적용` : '';
+              return fit && lockCount
+                ? `${prepared.length - lockCount}큐 번역 · ${lockCount}큐 고정${spk}`
+                : `${prepared.length}큐 번역 시작${spk}`;
+            })()}</button>
           {prog && <span className="pill">{prog.done} / {prog.total}</span>}
         </div>
         {prog && <div className="bar" style={{marginTop:8}}><i style={{width:`${prog.done/prog.total*100}%`}} /></div>}
@@ -3009,6 +3540,15 @@ function App() {
           <button title="현재 큐와 무엇이 바뀌었는지를 파일 하나로 저장합니다. API 키는 넣지 않습니다"
             onClick={saveWork}>작업 파일 저장</button>
           <button onClick={() => document.getElementById('workpick').click()}>열기</button>
+          <input id="mergepick" type="file" accept=".csv,.srt,.txt" hidden
+                 onChange={e => { if (e.target.files[0]) mergeReview(e.target.files[0]); e.target.value=''; }} />
+          <button disabled={!cues.length}
+            title="내보낸 파일을 밖에서 고쳐 온 것을 지금 작업에 되돌려 넣습니다. 시작 시간으로 짝을 맞추고, 병합한 큐는 고정합니다"
+            onClick={() => document.getElementById('mergepick').click()}>검수본 병합</button>
+          {mergeMsg && <span className="hint" style={{margin:0, color:'var(--ok,#34d399)'}}>
+            {mergeMsg}
+            <button className="sm" style={{marginLeft:6, padding:'1px 7px', fontSize:11}}
+              onClick={() => setMergeMsg('')}>닫기</button></span>}
           <button className="primary" onClick={download}
             title={subCount ? `본편과 서브를 각각 ${expFmt.toUpperCase()} 로 저장합니다 (본편 ${cues.filter(c=>(c.ko||'').trim() && c.track!=='sub').length}큐 · 서브 ${subCount}큐)`
               : `한글 자막을 ${expFmt.toUpperCase()} 로 저장합니다`}>
@@ -3055,6 +3595,9 @@ function App() {
                     placeholder="바른AI 키 (koba-…) · 이 브라우저에만 저장"
                     value={bkey} onChange={e => setBkey(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && bkey) runStep(st.id); }} />}
+                {(st.id === 'space' || st.id === 'pos') && !bkey &&
+                  <a className="getkey" href="https://bareun.ai/api-key?isCloud=true"
+                    target="_blank" rel="noreferrer">키 받기 ↗</a>}
                 {st.id === 'space' &&
                   <select value={spaceAll ? 'all' : 'safe'} title="채택할 교정 범위"
                     style={{flex:'0 0 auto', maxWidth:170}}
@@ -3089,9 +3632,34 @@ function App() {
                     : tg ? `실행 · ${tg}큐` : '대상 없음'}
                 </button>
               </div>
-              <p className="dd">{st.d}</p>
+              <p className="dd">{st.d}
+                {(st.id === 'pos' || st.id === 'space') && <>
+                  {' '}<a className="getkey" href="https://bareun.ai/api-key?isCloud=true"
+                    target="_blank" rel="noreferrer"
+                    title="바른AI 에서 API 키를 받습니다. 무료 5만 어절">키 발급 ↗</a>
+                </>}
+                {st.id === 'spell' && <>
+                  {' '}<a className="getkey" href="https://console.anthropic.com/settings/keys"
+                    target="_blank" rel="noreferrer"
+                    title="Anthropic 콘솔에서 API 키를 받습니다">키 발급 ↗</a>
+                </>}
+              </p>
               {st.id === 'pos' && posDone > 0 &&
                 <p className="hint" style={{marginTop:6}}>{posDone}큐 품사 분석 완료 — 줄 나누기가 품사로 판정합니다</p>}
+              {(st.id === 'pos' || st.id === 'space') && useTotal > 0 &&
+                <p className="hint" style={{marginTop:6}}>
+                  이 브라우저 누적 —
+                  {' '}띄어쓰기 {(use.spaceCalls||0).toLocaleString()}회 · {(use.spaceWords||0).toLocaleString()}어절
+                  {' · '}형태소 {(use.posCalls||0).toLocaleString()}회 · {(use.posWords||0).toLocaleString()}어절
+                  {' · '}<b style={{color: useTotal > 35000 ? 'var(--warn)' : undefined}}>
+                    합계 {useTotal.toLocaleString()}어절</b> / 무료 50,000
+                  {use.since ? ` · ${new Date(use.since).toLocaleDateString('ko-KR')} 부터` : ''}
+                  {' '}<button className="sm" style={{marginLeft:6, padding:'1px 7px', fontSize:11}}
+                    onClick={() => { try { localStorage.removeItem('bareun-usage'); } catch (e) {} setUse({}); }}
+                    title="집계를 0 으로 되돌립니다. 바른AI 서버 사용량은 지워지지 않습니다">집계 초기화</button>
+                  <br />앱이 직접 센 값입니다. 다른 기기·다른 도구로 쓴 것은 안 잡히니 정확한 잔량은{' '}
+                  <a href="https://bareun.ai/api-key?isCloud=true" target="_blank" rel="noreferrer">바른AI 대시보드</a>에서 보세요.
+                </p>}
               {(st.id === 'spell' || st.id === 'space' || st.id === 'pos') && prog && (
                 <div className="prog">
                   <span className="pbar">
@@ -3254,6 +3822,7 @@ function App() {
                 <MemoRow key={i} c={c} i={i} lim={lim} busy={busy} refCols={refCols}
                   showWas={filter === 'edit'} showEn={showEn}
                   onRevert={() => revertCue(i)}
+                  onLock={() => toggleLock(i)}
                   onChange={(v) => setKo(i, v)}
                   onTrack={() => setCues(p => p.map((x, k) =>
                     k === i ? { ...x, track: x.track === 'sub' ? 'main' : 'sub' } : x))}
